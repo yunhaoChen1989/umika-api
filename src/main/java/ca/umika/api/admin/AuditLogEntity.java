@@ -2,7 +2,6 @@ package ca.umika.api.admin;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.time.LocalDate;
 import java.util.Map;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -41,6 +40,9 @@ public class AuditLogEntity {
 
     @Column(name = "user_agent")
     private String userAgent;
+
+    @Column(name = "location_id")
+    private UUID locationId;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -115,6 +117,14 @@ public class AuditLogEntity {
 
     public void setUserAgent(String userAgent) {
         this.userAgent = userAgent;
+    }
+
+    public UUID getLocationId() {
+        return locationId;
+    }
+
+    public void setLocationId(UUID locationId) {
+        this.locationId = locationId;
     }
 
     public LocalDateTime getCreatedAt() {

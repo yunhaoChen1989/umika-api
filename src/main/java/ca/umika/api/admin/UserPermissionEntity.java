@@ -2,7 +2,6 @@ package ca.umika.api.admin;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
@@ -21,6 +20,9 @@ public class UserPermissionEntity {
 
     @Column(name = "is_granted")
     private Boolean isGranted;
+
+    @Column(name = "location_id")
+    private UUID locationId;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -55,6 +57,14 @@ public class UserPermissionEntity {
 
     public void setIsGranted(Boolean isGranted) {
         this.isGranted = isGranted;
+    }
+
+    public UUID getLocationId() {
+        return locationId;
+    }
+
+    public void setLocationId(UUID locationId) {
+        this.locationId = locationId;
     }
 
     public LocalDateTime getCreatedAt() {

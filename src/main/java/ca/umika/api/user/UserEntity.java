@@ -2,7 +2,6 @@ package ca.umika.api.user;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
@@ -36,6 +35,9 @@ public class UserEntity {
 
     @Column(name = "stripe_customer_id")
     private String stripeCustomerId;
+
+    @Column(name = "location_id")
+    private UUID locationId;
 
     @Column(name = "is_active")
     private Boolean isActive;
@@ -124,6 +126,14 @@ public class UserEntity {
         this.stripeCustomerId = stripeCustomerId;
     }
 
+    public UUID getLocationId() {
+        return locationId;
+    }
+
+    public void setLocationId(UUID locationId) {
+        this.locationId = locationId;
+    }
+
     public Boolean getIsActive() {
         return isActive;
     }
@@ -131,6 +141,7 @@ public class UserEntity {
     public void setIsActive(Boolean isActive) {
         this.isActive = isActive;
     }
+
 
     public LocalDateTime getLastLoginAt() {
         return lastLoginAt;

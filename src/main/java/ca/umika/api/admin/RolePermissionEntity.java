@@ -2,7 +2,6 @@ package ca.umika.api.admin;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
@@ -18,6 +17,9 @@ public class RolePermissionEntity {
 
     @Column(name = "permission_code", nullable = false)
     private String permissionCode;
+
+    @Column(name = "location_id")
+    private UUID locationId;
 
     @Column(name = "description")
     private String description;
@@ -47,6 +49,14 @@ public class RolePermissionEntity {
 
     public void setPermissionCode(String permissionCode) {
         this.permissionCode = permissionCode;
+    }
+
+    public UUID getLocationId() {
+        return locationId;
+    }
+
+    public void setLocationId(UUID locationId) {
+        this.locationId = locationId;
     }
 
     public String getDescription() {

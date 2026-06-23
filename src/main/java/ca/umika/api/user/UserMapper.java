@@ -20,6 +20,7 @@ public class UserMapper {
                 entity.getReferredBy(),
                 entity.getStripeCustomerId(),
                 entity.getIsActive(),
+                entity.getLocationId(),
                 entity.getLastLoginAt(),
                 entity.getLastLoginIp(),
                 entity.getCreatedAt(),
@@ -43,6 +44,7 @@ public class UserMapper {
         entity.setReferredBy(dto.referredBy());
         entity.setStripeCustomerId(dto.stripeCustomerId());
         entity.setIsActive(dto.isActive());
+        entity.setLocationId(dto.location());
         entity.setLastLoginAt(dto.lastLoginAt());
         entity.setLastLoginIp(dto.lastLoginIp());
         entity.setCreatedAt(dto.createdAt());
