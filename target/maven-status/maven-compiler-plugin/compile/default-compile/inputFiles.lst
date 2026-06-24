@@ -85,7 +85,9 @@
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/common/config/OpenApiConfig.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/common/config/SecurityConfig.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/common/persistence/BaseEntity.java
+/Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/common/web/ApiErrorResponse.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/common/web/ApiExceptionHandler.java
+/Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/common/web/ApiResult.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/common/web/PublicHealthController.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/common/web/ResourceNotFoundException.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/email/EmailLogController.java

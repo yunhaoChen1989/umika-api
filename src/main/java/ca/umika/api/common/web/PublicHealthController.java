@@ -15,11 +15,11 @@ public class PublicHealthController {
 
     @GetMapping("/ping")
     @Operation(summary = "Check whether the API is responding")
-    Map<String, Object> ping() {
-        return Map.of(
+    ApiResult<Map<String, Object>> ping() {
+        return ApiResult.ok(Map.of(
                 "service", "umika-api",
                 "status", "ok",
                 "timestamp", Instant.now().toString()
-        );
+        ));
     }
 }
