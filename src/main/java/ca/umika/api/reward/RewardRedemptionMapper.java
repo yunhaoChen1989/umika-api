@@ -30,6 +30,5 @@ public class RewardRedemptionMapper {
         entity.setOrderId(dto.orderId());
         entity.setPointsRedeemed(dto.pointsRedeemed());
         entity.setCashValue(dto.cashValue());
-        entity.setCreatedAt(dto.createdAt());
-    }
+}
 }

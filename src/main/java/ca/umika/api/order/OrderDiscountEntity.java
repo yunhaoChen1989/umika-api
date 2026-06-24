@@ -1,8 +1,8 @@
 package ca.umika.api.order;
 
 import jakarta.persistence.*;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.util.Map;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -11,7 +11,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "order_discounts")
-public class OrderDiscountEntity {
+public class OrderDiscountEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -32,11 +32,7 @@ public class OrderDiscountEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata", columnDefinition = "jsonb")
     private Map<String, Object> metadata;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -82,13 +78,5 @@ public class OrderDiscountEntity {
 
     public void setMetadata(Map<String, Object> metadata) {
         this.metadata = metadata;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
     }
 }

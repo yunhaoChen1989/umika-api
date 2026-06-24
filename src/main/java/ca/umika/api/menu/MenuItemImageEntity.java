@@ -1,13 +1,13 @@
 package ca.umika.api.menu;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
 @Table(name = "menu_item_images")
-public class MenuItemImageEntity {
+public class MenuItemImageEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -24,11 +24,7 @@ public class MenuItemImageEntity {
 
     @Column(name = "sort_order")
     private Integer sortOrder;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -66,13 +62,5 @@ public class MenuItemImageEntity {
 
     public void setSortOrder(Integer sortOrder) {
         this.sortOrder = sortOrder;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
     }
 }

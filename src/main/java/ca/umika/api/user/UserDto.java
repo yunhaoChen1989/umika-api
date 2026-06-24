@@ -1,14 +1,12 @@
 package ca.umika.api.user;
 
 import java.time.LocalDateTime;
-
 import java.util.UUID;
 
 public record UserDto(
         UUID id,
         String email,
         String phone,
-        String passwordHash,
         Boolean emailVerified,
         LocalDateTime emailVerifiedAt,
         String referralCode,

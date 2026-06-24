@@ -1,7 +1,7 @@
 package ca.umika.api.payment;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.time.LocalDate;
 import java.util.Map;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "payment_webhook_logs")
-public class PaymentWebhookLogEntity {
+public class PaymentWebhookLogEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -34,11 +34,7 @@ public class PaymentWebhookLogEntity {
 
     @Column(name = "processing_error")
     private String processingError;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -92,13 +88,5 @@ public class PaymentWebhookLogEntity {
 
     public void setProcessingError(String processingError) {
         this.processingError = processingError;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
     }
 }

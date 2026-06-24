@@ -1,14 +1,14 @@
 package ca.umika.api.menu;
 
 import jakarta.persistence.*;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
 @Table(name = "menu_items")
-public class MenuItemEntity {
+public class MenuItemEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -43,14 +43,7 @@ public class MenuItemEntity {
 
     @Column(name = "is_deleted")
     private Boolean isDeleted;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -136,21 +129,5 @@ public class MenuItemEntity {
 
     public void setIsDeleted(Boolean isDeleted) {
         this.isDeleted = isDeleted;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
     }
 }

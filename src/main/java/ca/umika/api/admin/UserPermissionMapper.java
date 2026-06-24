@@ -28,6 +28,5 @@ public class UserPermissionMapper {
         entity.setUserId(dto.userId());
         entity.setPermissionCode(dto.permissionCode());
         entity.setIsGranted(dto.isGranted());
-        entity.setCreatedAt(dto.createdAt());
-    }
+}
 }

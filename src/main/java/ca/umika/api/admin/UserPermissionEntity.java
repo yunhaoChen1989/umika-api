@@ -1,12 +1,12 @@
 package ca.umika.api.admin;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.util.UUID;
 
 @Entity
 @Table(name = "user_permissions")
-public class UserPermissionEntity {
+public class UserPermissionEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -23,11 +23,7 @@ public class UserPermissionEntity {
 
     @Column(name = "location_id")
     private UUID locationId;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -65,13 +61,5 @@ public class UserPermissionEntity {
 
     public void setLocationId(UUID locationId) {
         this.locationId = locationId;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
     }
 }

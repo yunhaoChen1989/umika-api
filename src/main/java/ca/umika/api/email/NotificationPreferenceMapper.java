@@ -35,7 +35,5 @@ public class NotificationPreferenceMapper {
         entity.setMarketingEnabled(dto.marketingEnabled());
         entity.setOrderUpdatesEnabled(dto.orderUpdatesEnabled());
         entity.setReferralUpdatesEnabled(dto.referralUpdatesEnabled());
-        entity.setCreatedAt(dto.createdAt());
-        entity.setUpdatedAt(dto.updatedAt());
-    }
+}
 }

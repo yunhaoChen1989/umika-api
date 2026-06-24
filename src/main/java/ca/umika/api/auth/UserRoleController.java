@@ -3,6 +3,8 @@ package ca.umika.api.auth;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.net.URI;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -25,7 +27,9 @@ public class UserRoleController {
     }
 
     @GetMapping
-    public List<UserRoleDto> findAll() { return service.findAll(); }
+    public Page<UserRoleDto> findAll(Pageable pageable) {
+        return service.findAll(pageable);
+    }
 
     @GetMapping("/{userId}/{roleId}")
     public UserRoleDto findById(@PathVariable UUID userId, @PathVariable UUID roleId) {

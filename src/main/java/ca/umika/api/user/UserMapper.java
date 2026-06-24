@@ -1,5 +1,6 @@
 package ca.umika.api.user;
 
+import java.time.LocalDateTime;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -13,7 +14,6 @@ public class UserMapper {
                 entity.getId(),
                 entity.getEmail(),
                 entity.getPhone(),
-                entity.getPasswordHash(),
                 entity.getEmailVerified(),
                 entity.getEmailVerifiedAt(),
                 entity.getReferralCode(),
@@ -28,26 +28,49 @@ public class UserMapper {
         );
     }
 
-    public UserEntity toEntity(UserDto dto) {
+    public UserEntity toEntity(UserWriteRequest dto) {
         UserEntity entity = new UserEntity();
-        updateEntity(entity, dto);
-        return entity;
+        applyWriteRequest(entity, dto);
+return entity;
     }
 
-    public void updateEntity(UserEntity entity, UserDto dto) {
-        entity.setEmail(dto.email());
-        entity.setPhone(dto.phone());
-        entity.setPasswordHash(dto.passwordHash());
-        entity.setEmailVerified(dto.emailVerified());
-        entity.setEmailVerifiedAt(dto.emailVerifiedAt());
-        entity.setReferralCode(dto.referralCode());
-        entity.setReferredBy(dto.referredBy());
-        entity.setStripeCustomerId(dto.stripeCustomerId());
-        entity.setIsActive(dto.isActive());
-        entity.setLocationId(dto.location());
-        entity.setLastLoginAt(dto.lastLoginAt());
-        entity.setLastLoginIp(dto.lastLoginIp());
-        entity.setCreatedAt(dto.createdAt());
-        entity.setUpdatedAt(dto.updatedAt());
+    public void updateEntity(UserEntity entity, UserWriteRequest dto) {
+        applyWriteRequest(entity, dto);
+}
+
+    private void applyWriteRequest(UserEntity entity, UserWriteRequest dto) {
+        if (dto.email() != null) {
+            entity.setEmail(dto.email());
+        }
+        if (dto.phone() != null) {
+            entity.setPhone(dto.phone());
+        }
+        if (dto.emailVerified() != null) {
+            entity.setEmailVerified(dto.emailVerified());
+        }
+        if (dto.emailVerifiedAt() != null) {
+            entity.setEmailVerifiedAt(dto.emailVerifiedAt());
+        }
+        if (dto.referralCode() != null) {
+            entity.setReferralCode(dto.referralCode());
+        }
+        if (dto.referredBy() != null) {
+            entity.setReferredBy(dto.referredBy());
+        }
+        if (dto.stripeCustomerId() != null) {
+            entity.setStripeCustomerId(dto.stripeCustomerId());
+        }
+        if (dto.isActive() != null) {
+            entity.setIsActive(dto.isActive());
+        }
+        if (dto.location() != null) {
+            entity.setLocationId(dto.location());
+        }
+        if (dto.lastLoginAt() != null) {
+            entity.setLastLoginAt(dto.lastLoginAt());
+        }
+        if (dto.lastLoginIp() != null) {
+            entity.setLastLoginIp(dto.lastLoginIp());
+        }
     }
 }

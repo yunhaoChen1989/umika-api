@@ -1,13 +1,13 @@
 package ca.umika.api.reward;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
 @Table(name = "reward_rules")
-public class RewardRuleEntity {
+public class RewardRuleEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -24,14 +24,7 @@ public class RewardRuleEntity {
 
     @Column(name = "is_active")
     private Boolean isActive;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -69,21 +62,5 @@ public class RewardRuleEntity {
 
     public void setIsActive(Boolean isActive) {
         this.isActive = isActive;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
     }
 }

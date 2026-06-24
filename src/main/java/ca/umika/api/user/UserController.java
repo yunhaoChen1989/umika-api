@@ -2,8 +2,9 @@ package ca.umika.api.user;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,8 +27,8 @@ public class UserController {
     }
 
     @GetMapping
-    public List<UserDto> findAll() {
-        return service.findAll();
+    public Page<UserDto> findAll(Pageable pageable) {
+        return service.findAll(pageable);
     }
 
     @GetMapping("/{id}")
@@ -36,13 +37,13 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<UserDto> create(@RequestBody UserDto dto) {
+    public ResponseEntity<UserDto> create(@RequestBody UserWriteRequest dto) {
         UserDto created = service.create(dto);
         return ResponseEntity.created(URI.create("/api/v1/users/" + created.id())).body(created);
     }
 
     @PutMapping("/{id}")
-    public UserDto update(@PathVariable UUID id, @RequestBody UserDto dto) {
+    public UserDto update(@PathVariable UUID id, @RequestBody UserWriteRequest dto) {
         return service.update(id, dto);
     }
 

@@ -34,6 +34,5 @@ public class OrderTaxMapper {
         entity.setTaxRate(dto.taxRate());
         entity.setTaxableAmount(dto.taxableAmount());
         entity.setTaxAmount(dto.taxAmount());
-        entity.setCreatedAt(dto.createdAt());
-    }
+}
 }

@@ -34,6 +34,5 @@ public class RewardTransactionMapper {
         entity.setPoints(dto.points());
         entity.setSource(dto.source());
         entity.setDescription(dto.description());
-        entity.setCreatedAt(dto.createdAt());
-    }
+}
 }

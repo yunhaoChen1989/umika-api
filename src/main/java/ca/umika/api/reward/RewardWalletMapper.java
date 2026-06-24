@@ -30,6 +30,5 @@ public class RewardWalletMapper {
         entity.setTotalEarned(dto.totalEarned());
         entity.setTotalRedeemed(dto.totalRedeemed());
         entity.setAvailableBalance(dto.availableBalance());
-        entity.setUpdatedAt(dto.updatedAt());
-    }
+}
 }

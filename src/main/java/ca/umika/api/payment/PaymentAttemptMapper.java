@@ -36,6 +36,5 @@ public class PaymentAttemptMapper {
         entity.setRequestPayload(dto.requestPayload());
         entity.setResponsePayload(dto.responsePayload());
         entity.setErrorMessage(dto.errorMessage());
-        entity.setCreatedAt(dto.createdAt());
-    }
+}
 }

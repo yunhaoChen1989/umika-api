@@ -28,6 +28,5 @@ public class AdminActivityLogMapper {
         entity.setUserId(dto.userId());
         entity.setAction(dto.action());
         entity.setDetail(dto.detail());
-        entity.setCreatedAt(dto.createdAt());
-    }
+}
 }

@@ -38,6 +38,5 @@ public class AuditLogMapper {
         entity.setAfterState(dto.afterState());
         entity.setIpAddress(dto.ipAddress());
         entity.setUserAgent(dto.userAgent());
-        entity.setCreatedAt(dto.createdAt());
-    }
+}
 }

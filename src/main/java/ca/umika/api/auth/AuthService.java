@@ -2,8 +2,9 @@ package ca.umika.api.auth;
 
 import ca.umika.api.user.UserDto;
 import ca.umika.api.user.UserEntity;
-import ca.umika.api.user.UserMapper;
+import ca.umika.api.user.UserWriteRequest;
 import ca.umika.api.user.UserRepository;
+import ca.umika.api.user.UserService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -12,11 +13,13 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final UserService userService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil, UserService userService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.userService = userService;
     }
 
     public LoginResponse login(LoginDto loginDto) {
@@ -28,22 +31,13 @@ public class AuthService {
         String token = jwtUtil.generateToken(user.getEmail());
         return new LoginResponse(token);
     }
-    public LoginResponse register(UserDto userDto) {
 
-        if (userRepository.findByEmail(userDto.email()).isPresent()) {
+    public LoginResponse register(UserWriteRequest userRequest) {
+        if (userRepository.findByEmail(userRequest.email()).isPresent()) {
             throw new RuntimeException("Email already exists");
         }
-        UserEntity user;
-        UserMapper userMapper = new UserMapper();
-        user = userMapper.toEntity(userDto);
-        user.setId(null);
-        // Use the SAME injected PasswordEncoder
-        user.setPasswordHash(
-                passwordEncoder.encode(userDto.passwordHash())
-        );
-
-        userRepository.save(user);
-        String token = jwtUtil.generateToken(user.getEmail());
+        UserDto user = userService.create(userRequest);
+        String token = jwtUtil.generateToken(user.email());
         return new LoginResponse(token);
     }
 }

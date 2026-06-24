@@ -1,7 +1,7 @@
 package ca.umika.api.payment;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.time.LocalDate;
 import java.util.Map;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "payment_attempts")
-public class PaymentAttemptEntity {
+public class PaymentAttemptEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -38,11 +38,7 @@ public class PaymentAttemptEntity {
 
     @Column(name = "error_message")
     private String errorMessage;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -104,13 +100,5 @@ public class PaymentAttemptEntity {
 
     public void setErrorMessage(String errorMessage) {
         this.errorMessage = errorMessage;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
     }
 }

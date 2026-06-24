@@ -25,7 +25,5 @@ public class RoleMapper {
 
     public void updateEntity(RoleEntity entity, RoleDto dto) {
         entity.setName(dto.name());
-        entity.setCreatedAt(dto.createdAt());
-        entity.setUpdatedAt(dto.updatedAt());
-    }
+}
 }

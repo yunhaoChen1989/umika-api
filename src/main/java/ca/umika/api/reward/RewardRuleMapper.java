@@ -31,7 +31,5 @@ public class RewardRuleMapper {
         entity.setRuleValue(dto.ruleValue());
         entity.setDescription(dto.description());
         entity.setIsActive(dto.isActive());
-        entity.setCreatedAt(dto.createdAt());
-        entity.setUpdatedAt(dto.updatedAt());
-    }
+}
 }

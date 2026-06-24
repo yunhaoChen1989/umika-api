@@ -2,12 +2,13 @@ package ca.umika.api.auth;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
 @Table(name = "refresh_tokens")
-public class RefreshTokenEntity {
+public class RefreshTokenEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -24,11 +25,7 @@ public class RefreshTokenEntity {
 
     @Column(name = "revoked")
     private Boolean revoked;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -66,13 +63,5 @@ public class RefreshTokenEntity {
 
     public void setRevoked(Boolean revoked) {
         this.revoked = revoked;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
     }
 }

@@ -57,7 +57,5 @@ public class OrderMapper {
         entity.setCouponId(dto.couponId());
         entity.setTaxRuleId(dto.taxRuleId());
         entity.setTaxExempt(dto.taxExempt());
-        entity.setCreatedAt(dto.createdAt());
-        entity.setUpdatedAt(dto.updatedAt());
-    }
+}
 }

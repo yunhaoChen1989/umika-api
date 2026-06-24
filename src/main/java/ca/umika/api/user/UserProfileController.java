@@ -3,6 +3,8 @@ package ca.umika.api.user;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.net.URI;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -26,8 +28,8 @@ public class UserProfileController {
     }
 
     @GetMapping
-    public List<UserProfileDto> findAll() {
-        return service.findAll();
+    public Page<UserProfileDto> findAll(Pageable pageable) {
+        return service.findAll(pageable);
     }
 
     @GetMapping("/{id}")

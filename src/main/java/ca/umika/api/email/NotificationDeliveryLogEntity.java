@@ -1,7 +1,7 @@
 package ca.umika.api.email;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.time.LocalDate;
 import java.util.Map;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "notification_delivery_logs")
-public class NotificationDeliveryLogEntity {
+public class NotificationDeliveryLogEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -31,11 +31,7 @@ public class NotificationDeliveryLogEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "provider_response", columnDefinition = "jsonb")
     private Map<String, Object> providerResponse;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -81,13 +77,5 @@ public class NotificationDeliveryLogEntity {
 
     public void setProviderResponse(Map<String, Object> providerResponse) {
         this.providerResponse = providerResponse;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
     }
 }

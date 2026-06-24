@@ -33,7 +33,5 @@ public class BusinessHourMapper {
         entity.setOpenTime(dto.openTime());
         entity.setCloseTime(dto.closeTime());
         entity.setIsClosed(dto.isClosed());
-        entity.setCreatedAt(dto.createdAt());
-        entity.setUpdatedAt(dto.updatedAt());
-    }
+}
 }

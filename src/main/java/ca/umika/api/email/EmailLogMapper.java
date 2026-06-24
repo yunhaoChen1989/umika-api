@@ -40,6 +40,5 @@ public class EmailLogMapper {
         entity.setProviderMessageId(dto.providerMessageId());
         entity.setErrorMessage(dto.errorMessage());
         entity.setSentAt(dto.sentAt());
-        entity.setCreatedAt(dto.createdAt());
-    }
+}
 }

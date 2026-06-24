@@ -2,11 +2,12 @@ package ca.umika.api.user;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.util.UUID;
 
 @Entity
 @Table(name = "users")
-public class UserEntity {
+public class UserEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -47,14 +48,7 @@ public class UserEntity {
 
     @Column(name = "last_login_ip")
     private String lastLoginIp;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -142,7 +136,6 @@ public class UserEntity {
         this.isActive = isActive;
     }
 
-
     public LocalDateTime getLastLoginAt() {
         return lastLoginAt;
     }
@@ -157,21 +150,5 @@ public class UserEntity {
 
     public void setLastLoginIp(String lastLoginIp) {
         this.lastLoginIp = lastLoginIp;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
     }
 }

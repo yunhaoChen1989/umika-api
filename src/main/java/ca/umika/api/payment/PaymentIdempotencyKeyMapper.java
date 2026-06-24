@@ -34,6 +34,5 @@ public class PaymentIdempotencyKeyMapper {
         entity.setRequestHash(dto.requestHash());
         entity.setResponseData(dto.responseData());
         entity.setExpiresAt(dto.expiresAt());
-        entity.setCreatedAt(dto.createdAt());
-    }
+}
 }

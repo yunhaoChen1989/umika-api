@@ -2,12 +2,13 @@ package ca.umika.api.email;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
 @Table(name = "email_logs")
-public class EmailLogEntity {
+public class EmailLogEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -39,11 +40,7 @@ public class EmailLogEntity {
 
     @Column(name = "sent_at")
     private LocalDateTime sentAt;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -121,13 +118,5 @@ public class EmailLogEntity {
 
     public void setSentAt(LocalDateTime sentAt) {
         this.sentAt = sentAt;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
     }
 }

@@ -44,6 +44,5 @@ public class NotificationMapper {
         entity.setRetryCount(dto.retryCount());
         entity.setScheduledAt(dto.scheduledAt());
         entity.setSentAt(dto.sentAt());
-        entity.setCreatedAt(dto.createdAt());
-    }
+}
 }

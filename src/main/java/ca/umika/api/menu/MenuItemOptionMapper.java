@@ -35,7 +35,5 @@ public class MenuItemOptionMapper {
         entity.setIsRequired(dto.isRequired());
         entity.setSortOrder(dto.sortOrder());
         entity.setIsActive(dto.isActive());
-        entity.setCreatedAt(dto.createdAt());
-        entity.setUpdatedAt(dto.updatedAt());
-    }
+}
 }

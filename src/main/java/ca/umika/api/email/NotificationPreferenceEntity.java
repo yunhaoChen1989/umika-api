@@ -1,13 +1,13 @@
 package ca.umika.api.email;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
 @Table(name = "notification_preferences")
-public class NotificationPreferenceEntity {
+public class NotificationPreferenceEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -30,14 +30,7 @@ public class NotificationPreferenceEntity {
 
     @Column(name = "referral_updates_enabled")
     private Boolean referralUpdatesEnabled;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -91,21 +84,5 @@ public class NotificationPreferenceEntity {
 
     public void setReferralUpdatesEnabled(Boolean referralUpdatesEnabled) {
         this.referralUpdatesEnabled = referralUpdatesEnabled;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
     }
 }

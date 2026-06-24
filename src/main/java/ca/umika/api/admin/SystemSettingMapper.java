@@ -29,7 +29,5 @@ public class SystemSettingMapper {
         entity.setSettingKey(dto.settingKey());
         entity.setSettingValue(dto.settingValue());
         entity.setDescription(dto.description());
-        entity.setCreatedAt(dto.createdAt());
-        entity.setUpdatedAt(dto.updatedAt());
-    }
+}
 }

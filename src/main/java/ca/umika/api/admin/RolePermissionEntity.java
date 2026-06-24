@@ -1,12 +1,12 @@
 package ca.umika.api.admin;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.util.UUID;
 
 @Entity
 @Table(name = "role_permissions")
-public class RolePermissionEntity {
+public class RolePermissionEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -23,11 +23,7 @@ public class RolePermissionEntity {
 
     @Column(name = "description")
     private String description;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -65,13 +61,5 @@ public class RolePermissionEntity {
 
     public void setDescription(String description) {
         this.description = description;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
     }
 }

@@ -31,7 +31,5 @@ public class ReferralMapper {
         entity.setReferredUserId(dto.referredUserId());
         entity.setStatus(dto.status());
         entity.setReferralCode(dto.referralCode());
-        entity.setCreatedAt(dto.createdAt());
-        entity.setUpdatedAt(dto.updatedAt());
-    }
+}
 }

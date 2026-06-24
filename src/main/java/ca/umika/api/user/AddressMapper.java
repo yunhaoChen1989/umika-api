@@ -39,7 +39,5 @@ public class AddressMapper {
         entity.setPostalCode(dto.postalCode());
         entity.setCountry(dto.country());
         entity.setIsDefault(dto.isDefault());
-        entity.setCreatedAt(dto.createdAt());
-        entity.setUpdatedAt(dto.updatedAt());
-    }
+}
 }

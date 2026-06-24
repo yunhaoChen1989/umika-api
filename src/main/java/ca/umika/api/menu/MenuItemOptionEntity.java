@@ -1,14 +1,14 @@
 package ca.umika.api.menu;
 
 import jakarta.persistence.*;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
 @Table(name = "menu_item_options")
-public class MenuItemOptionEntity {
+public class MenuItemOptionEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -31,14 +31,7 @@ public class MenuItemOptionEntity {
 
     @Column(name = "is_active")
     private Boolean isActive;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -92,21 +85,5 @@ public class MenuItemOptionEntity {
 
     public void setIsActive(Boolean isActive) {
         this.isActive = isActive;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
     }
 }

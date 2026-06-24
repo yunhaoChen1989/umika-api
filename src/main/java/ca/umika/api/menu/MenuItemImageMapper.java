@@ -30,6 +30,5 @@ public class MenuItemImageMapper {
         entity.setImageUrl(dto.imageUrl());
         entity.setIsPrimary(dto.isPrimary());
         entity.setSortOrder(dto.sortOrder());
-        entity.setCreatedAt(dto.createdAt());
-    }
+}
 }

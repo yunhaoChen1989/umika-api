@@ -32,6 +32,5 @@ public class NotificationDeliveryLogMapper {
         entity.setAttemptStatus(dto.attemptStatus());
         entity.setErrorMessage(dto.errorMessage());
         entity.setProviderResponse(dto.providerResponse());
-        entity.setCreatedAt(dto.createdAt());
-    }
+}
 }

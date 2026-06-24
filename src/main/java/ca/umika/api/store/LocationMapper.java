@@ -43,7 +43,5 @@ public class LocationMapper {
         entity.setPostalCode(dto.postalCode());
         entity.setCountry(dto.country());
         entity.setIsActive(dto.isActive());
-        entity.setCreatedAt(dto.createdAt());
-        entity.setUpdatedAt(dto.updatedAt());
-    }
+}
 }

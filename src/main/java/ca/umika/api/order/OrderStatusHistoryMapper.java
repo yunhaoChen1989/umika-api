@@ -32,6 +32,5 @@ public class OrderStatusHistoryMapper {
         entity.setNewStatus(dto.newStatus());
         entity.setChangedBy(dto.changedBy());
         entity.setNote(dto.note());
-        entity.setCreatedAt(dto.createdAt());
-    }
+}
 }

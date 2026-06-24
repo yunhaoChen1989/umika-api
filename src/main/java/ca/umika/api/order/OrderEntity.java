@@ -1,14 +1,14 @@
 package ca.umika.api.order;
 
 import jakarta.persistence.*;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
 @Table(name = "orders")
-public class OrderEntity {
+public class OrderEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -64,14 +64,7 @@ public class OrderEntity {
 
     @Column(name = "tax_exempt")
     private Boolean taxExempt;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -213,21 +206,5 @@ public class OrderEntity {
 
     public void setTaxExempt(Boolean taxExempt) {
         this.taxExempt = taxExempt;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
     }
 }

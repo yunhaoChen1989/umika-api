@@ -30,6 +30,5 @@ public class RefreshTokenMapper {
         entity.setTokenHash(dto.tokenHash());
         entity.setExpiresAt(dto.expiresAt());
         entity.setRevoked(dto.revoked());
-        entity.setCreatedAt(dto.createdAt());
-    }
+}
 }

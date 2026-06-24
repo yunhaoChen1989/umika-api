@@ -34,6 +34,5 @@ public class UserNotificationMapper {
         entity.setMessage(dto.message());
         entity.setIsRead(dto.isRead());
         entity.setReadAt(dto.readAt());
-        entity.setCreatedAt(dto.createdAt());
-    }
+}
 }

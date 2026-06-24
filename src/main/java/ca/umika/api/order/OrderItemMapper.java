@@ -36,6 +36,5 @@ public class OrderItemMapper {
         entity.setUnitPrice(dto.unitPrice());
         entity.setTotalPrice(dto.totalPrice());
         entity.setOptionSnapshot(dto.optionSnapshot());
-        entity.setCreatedAt(dto.createdAt());
-    }
+}
 }

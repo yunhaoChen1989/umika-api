@@ -3,6 +3,8 @@ package ca.umika.api.admin;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.net.URI;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -25,7 +27,9 @@ public class RoleMenuController {
     }
 
     @GetMapping
-    public List<RoleMenuDto> findAll() { return service.findAll(); }
+    public Page<RoleMenuDto> findAll(Pageable pageable) {
+        return service.findAll(pageable);
+    }
 
     @GetMapping("/{roleId}/{menuId}")
     public RoleMenuDto findById(@PathVariable UUID roleId, @PathVariable UUID menuId) {

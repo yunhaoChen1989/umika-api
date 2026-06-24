@@ -1,14 +1,14 @@
 package ca.umika.api.reward;
 
 import jakarta.persistence.*;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
 @Table(name = "reward_redemptions")
-public class RewardRedemptionEntity {
+public class RewardRedemptionEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -25,11 +25,7 @@ public class RewardRedemptionEntity {
 
     @Column(name = "cash_value", nullable = false)
     private BigDecimal cashValue;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -67,13 +63,5 @@ public class RewardRedemptionEntity {
 
     public void setCashValue(BigDecimal cashValue) {
         this.cashValue = cashValue;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
     }
 }

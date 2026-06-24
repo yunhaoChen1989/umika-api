@@ -43,7 +43,5 @@ public class SystemMenuMapper {
         entity.setSortOrder(dto.sortOrder());
         entity.setIsVisible(dto.isVisible());
         entity.setIsEnabled(dto.isEnabled());
-        entity.setCreatedAt(dto.createdAt());
-        entity.setUpdatedAt(dto.updatedAt());
-    }
+}
 }

@@ -1,13 +1,13 @@
 package ca.umika.api.order;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
 @Table(name = "order_status_history")
-public class OrderStatusHistoryEntity {
+public class OrderStatusHistoryEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -27,11 +27,7 @@ public class OrderStatusHistoryEntity {
 
     @Column(name = "note")
     private String note;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -77,13 +73,5 @@ public class OrderStatusHistoryEntity {
 
     public void setNote(String note) {
         this.note = note;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
     }
 }

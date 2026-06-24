@@ -1,13 +1,13 @@
 package ca.umika.api.reward;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
 @Table(name = "reward_wallets")
-public class RewardWalletEntity {
+public class RewardWalletEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -24,11 +24,7 @@ public class RewardWalletEntity {
 
     @Column(name = "available_balance")
     private Integer availableBalance;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -66,13 +62,5 @@ public class RewardWalletEntity {
 
     public void setAvailableBalance(Integer availableBalance) {
         this.availableBalance = availableBalance;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
     }
 }

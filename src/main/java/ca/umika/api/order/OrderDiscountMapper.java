@@ -32,6 +32,5 @@ public class OrderDiscountMapper {
         entity.setReferenceId(dto.referenceId());
         entity.setAmount(dto.amount());
         entity.setMetadata(dto.metadata());
-        entity.setCreatedAt(dto.createdAt());
-    }
+}
 }

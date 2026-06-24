@@ -28,6 +28,5 @@ public class RolePermissionMapper {
         entity.setRoleId(dto.roleId());
         entity.setPermissionCode(dto.permissionCode());
         entity.setDescription(dto.description());
-        entity.setCreatedAt(dto.createdAt());
-    }
+}
 }

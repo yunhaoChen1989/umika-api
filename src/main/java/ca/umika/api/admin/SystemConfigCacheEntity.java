@@ -1,13 +1,13 @@
 package ca.umika.api.admin;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
 @Table(name = "system_config_cache")
-public class SystemConfigCacheEntity {
+public class SystemConfigCacheEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -18,11 +18,7 @@ public class SystemConfigCacheEntity {
 
     @Column(name = "config_value", nullable = false)
     private String configValue;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -44,13 +40,5 @@ public class SystemConfigCacheEntity {
 
     public void setConfigValue(String configValue) {
         this.configValue = configValue;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
     }
 }

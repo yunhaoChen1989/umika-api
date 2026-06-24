@@ -34,6 +34,5 @@ public class PaymentWebhookLogMapper {
         entity.setPayload(dto.payload());
         entity.setProcessed(dto.processed());
         entity.setProcessingError(dto.processingError());
-        entity.setCreatedAt(dto.createdAt());
-    }
+}
 }

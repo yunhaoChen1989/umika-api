@@ -35,7 +35,5 @@ public class MenuCategoryMapper {
         entity.setSortOrder(dto.sortOrder());
         entity.setIsActive(dto.isActive());
         entity.setIsDeleted(dto.isDeleted());
-        entity.setCreatedAt(dto.createdAt());
-        entity.setUpdatedAt(dto.updatedAt());
-    }
+}
 }

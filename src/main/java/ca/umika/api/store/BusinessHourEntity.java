@@ -1,14 +1,14 @@
 package ca.umika.api.store;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import ca.umika.api.common.persistence.BaseEntity;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "business_hours")
-public class BusinessHourEntity {
+public class BusinessHourEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -28,14 +28,7 @@ public class BusinessHourEntity {
 
     @Column(name = "is_closed")
     private Boolean isClosed;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    public UUID getId() {
+public UUID getId() {
         return id;
     }
 
@@ -81,21 +74,5 @@ public class BusinessHourEntity {
 
     public void setIsClosed(Boolean isClosed) {
         this.isClosed = isClosed;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
     }
 }

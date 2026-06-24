@@ -37,7 +37,5 @@ public class PaymentRefundMapper {
         entity.setReason(dto.reason());
         entity.setProviderRefundId(dto.providerRefundId());
         entity.setStatus(dto.status());
-        entity.setCreatedAt(dto.createdAt());
-        entity.setUpdatedAt(dto.updatedAt());
-    }
+}
 }

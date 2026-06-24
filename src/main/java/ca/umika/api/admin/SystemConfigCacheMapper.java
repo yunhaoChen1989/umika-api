@@ -26,6 +26,5 @@ public class SystemConfigCacheMapper {
     public void updateEntity(SystemConfigCacheEntity entity, SystemConfigCacheDto dto) {
         entity.setConfigKey(dto.configKey());
         entity.setConfigValue(dto.configValue());
-        entity.setUpdatedAt(dto.updatedAt());
-    }
+}
 }

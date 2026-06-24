@@ -33,7 +33,5 @@ public class NotificationTemplateMapper {
         entity.setSubject(dto.subject());
         entity.setContent(dto.content());
         entity.setIsActive(dto.isActive());
-        entity.setCreatedAt(dto.createdAt());
-        entity.setUpdatedAt(dto.updatedAt());
-    }
+}
 }

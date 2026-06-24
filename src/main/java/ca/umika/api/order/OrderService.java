@@ -2,6 +2,8 @@ package ca.umika.api.order;
 
 import ca.umika.api.common.web.ResourceNotFoundException;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,10 +21,8 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public List<OrderDto> findAll() {
-        return repository.findAll().stream()
-                .map(mapper::toDto)
-                .toList();
+    public Page<OrderDto> findAll(Pageable pageable) {
+        return repository.findAll(pageable).map(mapper::toDto);
     }
 
     @Transactional(readOnly = true)

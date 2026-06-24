@@ -37,7 +37,5 @@ public class UserProfileMapper {
         entity.setAvatarUrl(dto.avatarUrl());
         entity.setPreferredLanguage(dto.preferredLanguage());
         entity.setMarketingEmailEnabled(dto.marketingEmailEnabled());
-        entity.setCreatedAt(dto.createdAt());
-        entity.setUpdatedAt(dto.updatedAt());
-    }
+}
 }

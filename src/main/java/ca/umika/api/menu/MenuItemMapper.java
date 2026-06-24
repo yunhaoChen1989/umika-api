@@ -43,7 +43,5 @@ public class MenuItemMapper {
         entity.setIsAvailable(dto.isAvailable());
         entity.setIsActive(dto.isActive());
         entity.setIsDeleted(dto.isDeleted());
-        entity.setCreatedAt(dto.createdAt());
-        entity.setUpdatedAt(dto.updatedAt());
-    }
+}
 }

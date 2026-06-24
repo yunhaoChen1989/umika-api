@@ -43,7 +43,5 @@ public class PaymentTransactionMapper {
         entity.setCurrency(dto.currency());
         entity.setPaymentMethod(dto.paymentMethod());
         entity.setFailureReason(dto.failureReason());
-        entity.setCreatedAt(dto.createdAt());
-        entity.setUpdatedAt(dto.updatedAt());
-    }
+}
 }
