@@ -39,6 +39,7 @@
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/admin/SystemMenuMapper.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/admin/SystemMenuRepository.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/admin/SystemMenuService.java
+/Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/admin/SystemMenuUpsertRequest.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/admin/SystemSettingController.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/admin/SystemSettingDto.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/admin/SystemSettingEntity.java

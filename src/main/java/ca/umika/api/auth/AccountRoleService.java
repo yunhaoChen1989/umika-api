@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AccountRoleService {
@@ -44,5 +46,11 @@ public class AccountRoleService {
                 .map(roleId -> roleRepository.findById(roleId).map(RoleEntity::getName).orElse("ROLE_CUSTOMER"))
                 .distinct()
                 .collect(Collectors.toList());
+    }
+
+    public void assertAdmin(UUID userId) {
+        if (!resolveRoleNames(userId).contains("ROLE_ADMIN")) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin role required");
+        }
     }
 }

@@ -22,6 +22,7 @@ ca/umika/api/user/CurrentAccountProfileController.class
 ca/umika/api/common/persistence/BaseEntity.class
 ca/umika/api/auth/RegisterRequest.class
 ca/umika/api/user/CurrentAccountProfileService.class
+ca/umika/api/admin/SystemMenuUpsertRequest.class
 ca/umika/api/user/UserWriteRequest.class
 ca/umika/api/reward/package-info.class
 ca/umika/api/cart/CartDto.class
