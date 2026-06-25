@@ -32,6 +32,16 @@ public class LocationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Location not found: " + id));
     }
 
+    @Transactional(readOnly = true)
+    public LocationDto findCurrent(UUID locationId) {
+        if (locationId != null) {
+            return findById(locationId);
+        }
+        return repository.findFirstByOrderByCreatedAtAsc()
+                .map(mapper::toDto)
+                .orElseThrow(() -> new ResourceNotFoundException("No locations found"));
+    }
+
     public LocationDto create(LocationDto dto) {
         LocationEntity entity = mapper.toEntity(dto);
         entity.setId(null);
