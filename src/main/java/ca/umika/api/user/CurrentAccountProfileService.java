@@ -1,5 +1,6 @@
 package ca.umika.api.user;
 
+import ca.umika.api.auth.AccountRoleService;
 import ca.umika.api.reward.RewardWalletRepository;
 import java.util.Optional;
 import org.springframework.http.HttpStatus;
@@ -14,15 +15,18 @@ public class CurrentAccountProfileService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final RewardWalletRepository rewardWalletRepository;
+    private final AccountRoleService accountRoleService;
 
     public CurrentAccountProfileService(
             UserRepository userRepository,
             UserProfileRepository userProfileRepository,
-            RewardWalletRepository rewardWalletRepository
+            RewardWalletRepository rewardWalletRepository,
+            AccountRoleService accountRoleService
     ) {
         this.userRepository = userRepository;
         this.userProfileRepository = userProfileRepository;
         this.rewardWalletRepository = rewardWalletRepository;
+        this.accountRoleService = accountRoleService;
     }
 
     @Transactional(readOnly = true)
@@ -38,6 +42,7 @@ public class CurrentAccountProfileService {
         return new CurrentAccountProfileDto(
                 user.getId(),
                 user.getEmail(),
+                accountRoleService.resolveRoleName(user.getId()),
                 user.getPhone(),
                 profile != null ? profile.getFirstName() : null,
                 profile != null ? profile.getLastName() : null,

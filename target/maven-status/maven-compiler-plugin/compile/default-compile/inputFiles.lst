@@ -49,6 +49,7 @@
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/admin/UserPermissionRepository.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/admin/UserPermissionService.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/admin/package-info.java
+/Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/auth/AccountRoleService.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/auth/AuthController.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/auth/AuthService.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/auth/JwtAuthenticationFilter.java

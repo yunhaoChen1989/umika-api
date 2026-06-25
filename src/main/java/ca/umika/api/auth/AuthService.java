@@ -32,6 +32,7 @@ public class AuthService {
     private final RewardWalletRepository rewardWalletRepository;
     private final RewardTransactionRepository rewardTransactionRepository;
     private final SystemSettingRepository systemSettingRepository;
+    private final AccountRoleService accountRoleService;
 
     public AuthService(
             UserRepository userRepository,
@@ -42,7 +43,8 @@ public class AuthService {
             ReferralRepository referralRepository,
             RewardWalletRepository rewardWalletRepository,
             RewardTransactionRepository rewardTransactionRepository,
-            SystemSettingRepository systemSettingRepository
+            SystemSettingRepository systemSettingRepository,
+            AccountRoleService accountRoleService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -53,6 +55,7 @@ public class AuthService {
         this.rewardWalletRepository = rewardWalletRepository;
         this.rewardTransactionRepository = rewardTransactionRepository;
         this.systemSettingRepository = systemSettingRepository;
+        this.accountRoleService = accountRoleService;
     }
 
     public LoginResponse login(LoginDto loginDto) {
@@ -62,7 +65,7 @@ public class AuthService {
             throw new BadCredentialsException("Invalid email or password");
         }
         String token = jwtUtil.generateToken(user.getEmail());
-        return new LoginResponse(token);
+        return new LoginResponse(token, accountRoleService.resolveRoleName(user.getId()));
     }
 
     @Transactional
@@ -113,7 +116,7 @@ public class AuthService {
         }
 
         String token = jwtUtil.generateToken(user.email());
-        return new LoginResponse(token);
+        return new LoginResponse(token, accountRoleService.resolveRoleName(user.id()));
     }
 
     private void awardReferralSignupBonus(UserEntity referrer, java.util.UUID referredUserId, String referralCode) {

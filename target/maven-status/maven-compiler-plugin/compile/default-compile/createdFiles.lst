@@ -22,4 +22,5 @@ ca/umika/api/user/UserWriteRequest.class
 ca/umika/api/reward/package-info.class
 ca/umika/api/cart/CartDto.class
 ca/umika/api/user/package-info.class
+ca/umika/api/auth/AccountRoleService.class
 ca/umika/api/user/CurrentAccountProfileDto.class
