@@ -22,8 +22,8 @@ public class UserEntity extends BaseEntity {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
-    @Column(name = "email_verified")
-    private Boolean emailVerified;
+    @Column(name = "email_verified", nullable = false)
+    private Boolean emailVerified = Boolean.FALSE;
 
     @Column(name = "email_verified_at")
     private LocalDateTime emailVerifiedAt;
@@ -40,8 +40,8 @@ public class UserEntity extends BaseEntity {
     @Column(name = "location_id")
     private UUID locationId;
 
-    @Column(name = "is_active")
-    private Boolean isActive;
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = Boolean.TRUE;
 
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;

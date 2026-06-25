@@ -11,10 +11,15 @@ ca/umika/api/auth/package-info.class
 ca/umika/api/payment/package-info.class
 ca/umika/api/common/web/ApiErrorResponse.class
 ca/umika/api/cart/CartController.class
+ca/umika/api/user/CurrentAccountProfileUpdateRequest.class
 ca/umika/api/menu/package-info.class
 ca/umika/api/order/package-info.class
+ca/umika/api/user/CurrentAccountProfileController.class
 ca/umika/api/common/persistence/BaseEntity.class
+ca/umika/api/auth/RegisterRequest.class
+ca/umika/api/user/CurrentAccountProfileService.class
 ca/umika/api/user/UserWriteRequest.class
 ca/umika/api/reward/package-info.class
 ca/umika/api/cart/CartDto.class
 ca/umika/api/user/package-info.class
+ca/umika/api/user/CurrentAccountProfileDto.class

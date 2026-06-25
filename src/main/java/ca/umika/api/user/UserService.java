@@ -12,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.security.SecureRandom;
 
 @Service
 @Transactional
@@ -22,6 +23,7 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SecureRandom secureRandom = new SecureRandom();
 
     public UserService(
             UserRepository repository,
@@ -52,8 +54,17 @@ public class UserService {
     public UserDto create(UserWriteRequest dto) {
         UserEntity entity = mapper.toEntity(dto);
         entity.setId(null);
+        if (entity.getEmailVerified() == null) {
+            entity.setEmailVerified(Boolean.FALSE);
+        }
+        if (entity.getIsActive() == null) {
+            entity.setIsActive(Boolean.TRUE);
+        }
         if (dto.password() == null || dto.password().isBlank()) {
             throw new IllegalArgumentException("Password is required");
+        }
+        if (entity.getReferralCode() == null || entity.getReferralCode().isBlank()) {
+            entity.setReferralCode(generateUniqueReferralCode());
         }
         entity.setPasswordHash(passwordEncoder.encode(dto.password()));
         UserEntity saved = repository.save(entity);
@@ -97,5 +108,24 @@ public class UserService {
         UserRoleEntity userRole = new UserRoleEntity();
         userRole.setId(new UserRoleId(userId, role.getId()));
         userRoleRepository.save(userRole);
+    }
+
+    private String generateUniqueReferralCode() {
+        for (int attempt = 0; attempt < 20; attempt++) {
+            String code = "UMIKA" + randomBase36(6);
+            if (!repository.existsByReferralCode(code)) {
+                return code;
+            }
+        }
+        throw new IllegalStateException("Unable to generate a unique referral code");
+    }
+
+    private String randomBase36(int length) {
+        final String alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        StringBuilder builder = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            builder.append(alphabet.charAt(secureRandom.nextInt(alphabet.length())));
+        }
+        return builder.toString();
     }
 }

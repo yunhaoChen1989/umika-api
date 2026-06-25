@@ -61,6 +61,7 @@
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/auth/RefreshTokenMapper.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/auth/RefreshTokenRepository.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/auth/RefreshTokenService.java
+/Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/auth/RegisterRequest.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/auth/RoleController.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/auth/RoleDto.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/auth/RoleEntity.java
@@ -264,6 +265,10 @@
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/user/AddressMapper.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/user/AddressRepository.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/user/AddressService.java
+/Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/user/CurrentAccountProfileController.java
+/Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/user/CurrentAccountProfileDto.java
+/Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/user/CurrentAccountProfileService.java
+/Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/user/CurrentAccountProfileUpdateRequest.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/user/UserController.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/user/UserDto.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/user/UserEntity.java

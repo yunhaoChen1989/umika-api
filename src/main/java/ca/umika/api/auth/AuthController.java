@@ -1,7 +1,7 @@
 package ca.umika.api.auth;
 
-import ca.umika.api.user.UserWriteRequest;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,14 +20,14 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@RequestBody LoginDto loginDto) {
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginDto loginDto) {
         LoginResponse response = authService.login(loginDto);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/register")
-    public ResponseEntity<LoginResponse> register(@RequestBody UserWriteRequest userRequest) {
-        LoginResponse response = authService.register(userRequest);
+    public ResponseEntity<LoginResponse> register(@Valid @RequestBody RegisterRequest registerRequest) {
+        LoginResponse response = authService.register(registerRequest);
         return ResponseEntity.ok(response);
     }
 }
