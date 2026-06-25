@@ -11,6 +11,9 @@
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/admin/AuditLogMapper.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/admin/AuditLogRepository.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/admin/AuditLogService.java
+/Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/admin/ManagerMenuController.java
+/Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/admin/ManagerMenuNodeDto.java
+/Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/admin/ManagerMenuService.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/admin/RoleMenuController.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/admin/RoleMenuDto.java
 /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/src/main/java/ca/umika/api/admin/RoleMenuEntity.java

@@ -1,7 +1,9 @@
 package ca.umika.api.auth;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -16,13 +18,31 @@ public class AccountRoleService {
     }
 
     public String resolveRoleName(UUID userId) {
-        List<UserRoleEntity> userRoles = userRoleRepository.findByIdUserId(userId);
-        if (userRoles.isEmpty()) {
+        List<UUID> roleIds = resolveRoleIds(userId);
+        if (roleIds.isEmpty()) {
             return "ROLE_CUSTOMER";
         }
-        UUID roleId = userRoles.get(0).getId().getRoleId();
+        UUID roleId = roleIds.get(0);
         return roleRepository.findById(roleId)
                 .map(RoleEntity::getName)
                 .orElse("ROLE_CUSTOMER");
+    }
+
+    public List<UUID> resolveRoleIds(UUID userId) {
+        List<UUID> roleIds = userRoleRepository.findByIdUserId(userId).stream()
+                .map(userRole -> userRole.getId().getRoleId())
+                .distinct()
+                .collect(Collectors.toCollection(ArrayList::new));
+        if (roleIds.isEmpty()) {
+            roleRepository.findByName("ROLE_CUSTOMER").ifPresent(role -> roleIds.add(role.getId()));
+        }
+        return roleIds;
+    }
+
+    public List<String> resolveRoleNames(UUID userId) {
+        return resolveRoleIds(userId).stream()
+                .map(roleId -> roleRepository.findById(roleId).map(RoleEntity::getName).orElse("ROLE_CUSTOMER"))
+                .distinct()
+                .collect(Collectors.toList());
     }
 }

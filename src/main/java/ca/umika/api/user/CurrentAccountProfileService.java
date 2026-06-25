@@ -43,6 +43,7 @@ public class CurrentAccountProfileService {
                 user.getId(),
                 user.getEmail(),
                 accountRoleService.resolveRoleName(user.getId()),
+                accountRoleService.resolveRoleNames(user.getId()),
                 user.getPhone(),
                 profile != null ? profile.getFirstName() : null,
                 profile != null ? profile.getLastName() : null,

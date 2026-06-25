@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: ca.umika.api.UmikaApiApplicationTests
 -------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 41.93 s -- in ca.umika.api.UmikaApiApplicationTests
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 8.570 s -- in ca.umika.api.UmikaApiApplicationTests

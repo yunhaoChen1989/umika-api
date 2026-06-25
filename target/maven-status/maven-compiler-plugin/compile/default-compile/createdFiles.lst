@@ -6,12 +6,16 @@ ca/umika/api/email/package-info.class
 ca/umika/api/cart/CartService.class
 ca/umika/api/referral/package-info.class
 ca/umika/api/cart/CartItemEntity.class
+ca/umika/api/admin/ManagerMenuService$MenuNode.class
 ca/umika/api/cart/CartItemRepository.class
+ca/umika/api/admin/ManagerMenuController.class
 ca/umika/api/auth/package-info.class
 ca/umika/api/payment/package-info.class
+ca/umika/api/admin/ManagerMenuNodeDto.class
 ca/umika/api/common/web/ApiErrorResponse.class
 ca/umika/api/cart/CartController.class
 ca/umika/api/user/CurrentAccountProfileUpdateRequest.class
+ca/umika/api/admin/ManagerMenuService.class
 ca/umika/api/menu/package-info.class
 ca/umika/api/order/package-info.class
 ca/umika/api/user/CurrentAccountProfileController.class
