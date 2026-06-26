@@ -46,6 +46,13 @@ public class LocationService {
     }
 
     @Transactional(readOnly = true)
+    public LocationIdDto resolveIdByLocationCode(String locationCode) {
+        LocationEntity entity = repository.findByLocationCodeIgnoreCase(normalizeLocationCode(locationCode))
+                .orElseThrow(() -> new ResourceNotFoundException("Location not found: " + locationCode));
+        return new LocationIdDto(entity.getId());
+    }
+
+    @Transactional(readOnly = true)
     public LocationDto findCurrent(String locationCode) {
         if (locationCode != null && !locationCode.isBlank()) {
             return findByLocationCode(locationCode);

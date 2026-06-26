@@ -41,6 +41,11 @@ public class LocationController {
         return service.findCurrent(locationCode);
     }
 
+    @GetMapping("/resolve-id")
+    public LocationIdDto resolveId(@RequestParam String locationCode) {
+        return service.resolveIdByLocationCode(locationCode);
+    }
+
     @PostMapping
     public ResponseEntity<LocationDto> create(@RequestBody LocationDto dto) {
         LocationDto created = service.create(dto);
