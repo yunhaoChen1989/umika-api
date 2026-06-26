@@ -6,10 +6,13 @@ import ca.umika.api.user.UserRepository;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,23 +54,66 @@ public class ManagerMenuService {
             return List.of();
         }
 
-        List<UUID> menuIds = roleMenuRepository.findByIdRoleIdIn(roleIds).stream()
+        Set<UUID> directAllowedMenuIds = roleMenuRepository.findByIdRoleIdIn(roleIds).stream()
                 .map(roleMenu -> roleMenu.getId().getMenuId())
-                .distinct()
-                .collect(Collectors.toList());
+                .collect(Collectors.toCollection(LinkedHashSet::new));
 
-        if (menuIds.isEmpty()) {
+        if (directAllowedMenuIds.isEmpty()) {
             return List.of();
         }
 
-        List<SystemMenuEntity> menus = systemMenuRepository.findByIdIn(menuIds).stream()
+        List<SystemMenuEntity> allMenus = systemMenuRepository.findAll(
+                Sort.by(Sort.Order.asc("sortOrder"), Sort.Order.asc("name"))
+        );
+        Map<UUID, SystemMenuEntity> menuMap = allMenus.stream()
+                .collect(Collectors.toMap(
+                        SystemMenuEntity::getId,
+                        menu -> menu,
+                        (left, right) -> left,
+                        LinkedHashMap::new
+                ));
+
+        Set<UUID> visibleMenuIds = new LinkedHashSet<>();
+        for (SystemMenuEntity menu : allMenus) {
+            if (isVisibleToRole(menu, directAllowedMenuIds, menuMap)) {
+                visibleMenuIds.add(menu.getId());
+            }
+        }
+
+        if (visibleMenuIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<SystemMenuEntity> menus = allMenus.stream()
+                .filter(menu -> visibleMenuIds.contains(menu.getId()))
                 .filter(menu -> Boolean.TRUE.equals(menu.getIsEnabled()))
                 .filter(menu -> Boolean.TRUE.equals(menu.getIsVisible()) || menu.getIsVisible() == null)
-                .sorted(Comparator.comparing(SystemMenuEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo))
-                        .thenComparing(SystemMenuEntity::getName, Comparator.nullsLast(String::compareTo)))
                 .toList();
 
         return buildTree(menus);
+    }
+
+    private boolean isVisibleToRole(
+            SystemMenuEntity menu,
+            Set<UUID> directAllowedMenuIds,
+            Map<UUID, SystemMenuEntity> menuMap
+    ) {
+        if (directAllowedMenuIds.contains(menu.getId())) {
+            return true;
+        }
+
+        UUID parentId = menu.getParentId();
+        while (parentId != null) {
+            if (directAllowedMenuIds.contains(parentId)) {
+                return true;
+            }
+            SystemMenuEntity parent = menuMap.get(parentId);
+            if (parent == null) {
+                break;
+            }
+            parentId = parent.getParentId();
+        }
+        return false;
     }
 
     private List<ManagerMenuNodeDto> buildTree(List<SystemMenuEntity> menus) {
