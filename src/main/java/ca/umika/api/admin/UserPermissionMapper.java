@@ -14,6 +14,7 @@ public class UserPermissionMapper {
                 entity.getUserId(),
                 entity.getPermissionCode(),
                 entity.getIsGranted(),
+                entity.getLocationId(),
                 entity.getCreatedAt()
         );
     }
@@ -28,5 +29,6 @@ public class UserPermissionMapper {
         entity.setUserId(dto.userId());
         entity.setPermissionCode(dto.permissionCode());
         entity.setIsGranted(dto.isGranted());
+        entity.setLocationId(dto.locationId());
 }
 }

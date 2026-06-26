@@ -88,7 +88,7 @@ public class UserService {
         if (!repository.existsById(id)) {
             throw new ResourceNotFoundException("User not found: " + id);
         }
-        userRoleRepository.deleteByUserId(id);
+        userRoleRepository.deleteByIdUserId(id);
         repository.deleteById(id);
     }
 
@@ -97,7 +97,7 @@ public class UserService {
             return;
         }
 
-        userRoleRepository.deleteByUserId(userId);
+        userRoleRepository.deleteByIdUserId(userId);
 
         RoleEntity role = roleId != null
                 ? roleRepository.findById(roleId)

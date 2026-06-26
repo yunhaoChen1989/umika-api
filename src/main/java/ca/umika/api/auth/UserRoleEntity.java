@@ -10,7 +10,6 @@ public class UserRoleEntity {
 
     @EmbeddedId
     private UserRoleId id;
-
     public UserRoleId getId() { return id; }
 
     public void setId(UserRoleId id) { this.id = id; }

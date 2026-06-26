@@ -9,6 +9,7 @@ public record UserPermissionDto(
         UUID userId,
         String permissionCode,
         Boolean isGranted,
+        UUID locationId,
         LocalDateTime createdAt
 ) {
 }

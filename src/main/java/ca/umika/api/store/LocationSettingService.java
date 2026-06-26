@@ -90,23 +90,35 @@ public class LocationSettingService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()))
                 .getId();
 
-        if (locationId == null) {
-            if (userPermissionRepository.existsByUserIdAndPermissionCodeIgnoreCaseAndIsGrantedTrueAndLocationIdIsNull(
-                    userId, MANAGE_PERMISSION_CODE)) {
-                return;
-            }
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Missing location setting permission");
-        }
-
-        boolean allowed = userPermissionRepository.existsByUserIdAndPermissionCodeIgnoreCaseAndIsGrantedTrueAndLocationId(
-                userId, MANAGE_PERMISSION_CODE, locationId
-        ) || userPermissionRepository.existsByUserIdAndPermissionCodeIgnoreCaseAndIsGrantedTrueAndLocationIdIsNull(
-                userId, MANAGE_PERMISSION_CODE
-        );
+        boolean allowed = hasGlobalManagePermission(userId)
+                || (locationId != null && hasLocationManagePermission(userId, locationId));
 
         if (!allowed) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Missing location setting permission");
+            if (hasAnyManagePermissionRecord(userId, locationId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Missing location setting permission");
+            }
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing location setting permission");
         }
+    }
+
+    private boolean hasGlobalManagePermission(UUID userId) {
+        return userPermissionRepository.existsByUserIdAndPermissionCodeIgnoreCaseAndIsGrantedTrueAndLocationIdIsNull(
+                userId, MANAGE_PERMISSION_CODE
+        );
+    }
+
+    private boolean hasLocationManagePermission(UUID userId, UUID locationId) {
+        return userPermissionRepository.existsByUserIdAndPermissionCodeIgnoreCaseAndIsGrantedTrueAndLocationId(
+                userId, MANAGE_PERMISSION_CODE, locationId
+        );
+    }
+
+    private boolean hasAnyManagePermissionRecord(UUID userId, UUID locationId) {
+        return userPermissionRepository.existsByUserIdAndPermissionCodeIgnoreCaseAndLocationIdIsNull(
+                userId, MANAGE_PERMISSION_CODE
+        ) || (locationId != null && userPermissionRepository.existsByUserIdAndPermissionCodeIgnoreCaseAndLocationId(
+                userId, MANAGE_PERMISSION_CODE, locationId
+        ));
     }
 
     private void ensureLocationExists(UUID locationId) {
