@@ -1,8 +1,12 @@
 package ca.umika.api.store;
 
-import jakarta.persistence.*;
 import ca.umika.api.common.persistence.BaseEntity;
-import java.time.LocalDate;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import java.util.UUID;
 
 @Entity
@@ -12,6 +16,9 @@ public class LocationEntity extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @Column(name = "location_code", nullable = false, unique = true, length = 12)
+    private String locationCode;
 
     @Column(name = "name", nullable = false)
     private String name;
@@ -42,12 +49,21 @@ public class LocationEntity extends BaseEntity {
 
     @Column(name = "is_active")
     private Boolean isActive;
-public UUID getId() {
+
+    public UUID getId() {
         return id;
     }
 
     public void setId(UUID id) {
         this.id = id;
+    }
+
+    public String getLocationCode() {
+        return locationCode;
+    }
+
+    public void setLocationCode(String locationCode) {
+        this.locationCode = locationCode;
     }
 
     public String getName() {

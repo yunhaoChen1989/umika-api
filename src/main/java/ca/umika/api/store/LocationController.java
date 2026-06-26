@@ -2,10 +2,8 @@ package ca.umika.api.store;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.net.URI;
-import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,28 +32,28 @@ public class LocationController {
     }
 
     @GetMapping("/{id}")
-    public LocationDto findById(@PathVariable UUID id) {
-        return service.findById(id);
+    public LocationDto findById(@PathVariable String id) {
+        return service.findByLocationCode(id);
     }
 
     @GetMapping("/current")
-    public LocationDto findCurrent(@RequestParam(required = false) UUID locationId) {
-        return service.findCurrent(locationId);
+    public LocationDto findCurrent(@RequestParam(required = false) String locationCode) {
+        return service.findCurrent(locationCode);
     }
 
     @PostMapping
     public ResponseEntity<LocationDto> create(@RequestBody LocationDto dto) {
         LocationDto created = service.create(dto);
-        return ResponseEntity.created(URI.create("/api/v1/locations/" + created.id())).body(created);
+        return ResponseEntity.created(URI.create("/api/v1/locations/" + created.locationCode())).body(created);
     }
 
     @PutMapping("/{id}")
-    public LocationDto update(@PathVariable UUID id, @RequestBody LocationDto dto) {
+    public LocationDto update(@PathVariable String id, @RequestBody LocationDto dto) {
         return service.update(id, dto);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable String id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }

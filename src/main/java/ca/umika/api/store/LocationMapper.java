@@ -11,6 +11,7 @@ public class LocationMapper {
         }
         return new LocationDto(
                 entity.getId(),
+                entity.getLocationCode(),
                 entity.getName(),
                 entity.getPhone(),
                 entity.getEmail(),

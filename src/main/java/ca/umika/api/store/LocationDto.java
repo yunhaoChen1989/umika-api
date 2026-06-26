@@ -6,6 +6,7 @@ import java.util.UUID;
 
 public record LocationDto(
         UUID id,
+        String locationCode,
         String name,
         String phone,
         String email,
