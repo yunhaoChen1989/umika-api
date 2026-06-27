@@ -1,12 +1,14 @@
 package ca.umika.api.menu;
 
+import java.util.UUID;
 import ca.umika.api.common.web.ResourceNotFoundException;
-import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @Transactional
@@ -14,10 +16,19 @@ public class MenuItemImageService {
 
     private final MenuItemImageRepository repository;
     private final MenuItemImageMapper mapper;
+    private final MenuItemRepository menuItemRepository;
+    private final MenuItemImageStorageService storageService;
 
-    public MenuItemImageService(MenuItemImageRepository repository, MenuItemImageMapper mapper) {
+    public MenuItemImageService(
+            MenuItemImageRepository repository,
+            MenuItemImageMapper mapper,
+            MenuItemRepository menuItemRepository,
+            MenuItemImageStorageService storageService
+    ) {
         this.repository = repository;
         this.mapper = mapper;
+        this.menuItemRepository = menuItemRepository;
+        this.storageService = storageService;
     }
 
     @Transactional(readOnly = true)
@@ -33,12 +44,29 @@ public class MenuItemImageService {
     }
 
     public MenuItemImageDto create(MenuItemImageDto dto) {
+        ensureMenuItemExists(dto.menuItemId());
         MenuItemImageEntity entity = mapper.toEntity(dto);
         entity.setId(null);
         return mapper.toDto(repository.save(entity));
     }
 
+    public MenuItemImageDto upload(UUID menuItemId, MultipartFile file, Boolean isPrimary, Integer sortOrder, String publicBaseUrl) {
+        ensureMenuItemExists(menuItemId);
+        String filename = storageService.store(file);
+        String publicUrl = buildPublicUrl(publicBaseUrl, filename);
+
+        MenuItemImageEntity entity = new MenuItemImageEntity();
+        entity.setMenuItemId(menuItemId);
+        entity.setImageUrl(publicUrl);
+        entity.setIsPrimary(isPrimary != null ? isPrimary : Boolean.FALSE);
+        entity.setSortOrder(sortOrder != null ? sortOrder : 0);
+        entity.setId(null);
+
+        return mapper.toDto(repository.save(entity));
+    }
+
     public MenuItemImageDto update(UUID id, MenuItemImageDto dto) {
+        ensureMenuItemExists(dto.menuItemId());
         MenuItemImageEntity entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("MenuItemImage not found: " + id));
         mapper.updateEntity(entity, dto);
@@ -46,9 +74,26 @@ public class MenuItemImageService {
     }
 
     public void delete(UUID id) {
-        if (!repository.existsById(id)) {
-            throw new ResourceNotFoundException("MenuItemImage not found: " + id);
+        MenuItemImageEntity entity = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("MenuItemImage not found: " + id));
+        storageService.delete(entity.getImageUrl());
+        repository.delete(entity);
+    }
+
+    private void ensureMenuItemExists(UUID menuItemId) {
+        if (menuItemId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "menuItemId is required");
         }
-        repository.deleteById(id);
+        if (!menuItemRepository.existsById(menuItemId)) {
+            throw new ResourceNotFoundException("MenuItem not found: " + menuItemId);
+        }
+    }
+
+    private String buildPublicUrl(String publicBaseUrl, String filename) {
+        String base = publicBaseUrl == null ? "" : publicBaseUrl.trim();
+        if (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        return base + "/uploads/menu-item-images/" + filename;
     }
 }

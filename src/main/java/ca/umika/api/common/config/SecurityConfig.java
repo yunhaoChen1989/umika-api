@@ -31,6 +31,7 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/actuator/health",
                                 "/actuator/info",
+                                "/uploads/**",
                                 "/api/v1/auth/**"
                         ).permitAll()
                         .requestMatchers( "/api/v1/**").permitAll()

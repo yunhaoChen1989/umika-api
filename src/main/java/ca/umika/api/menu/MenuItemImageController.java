@@ -2,11 +2,12 @@ package ca.umika.api.menu;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.net.URI;
-import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,7 +15,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @RestController
 @RequestMapping("/api/v1/menu-item-images")
@@ -43,6 +47,18 @@ public class MenuItemImageController {
         return ResponseEntity.created(URI.create("/api/v1/menu-item-images/" + created.id())).body(created);
     }
 
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<MenuItemImageDto> upload(
+            @RequestParam UUID menuItemId,
+            @RequestPart("file") MultipartFile file,
+            @RequestParam(required = false) Boolean isPrimary,
+            @RequestParam(required = false) Integer sortOrder
+    ) {
+        String publicBaseUrl = ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString();
+        MenuItemImageDto created = service.upload(menuItemId, file, isPrimary, sortOrder, publicBaseUrl);
+        return ResponseEntity.created(URI.create("/api/v1/menu-item-images/" + created.id())).body(created);
+    }
+
     @PutMapping("/{id}")
     public MenuItemImageDto update(@PathVariable UUID id, @RequestBody MenuItemImageDto dto) {
         return service.update(id, dto);
@@ -50,6 +66,12 @@ public class MenuItemImageController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        service.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/picture")
+    public ResponseEntity<Void> deletePicture(@PathVariable UUID id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }

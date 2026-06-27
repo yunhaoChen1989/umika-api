@@ -42,3 +42,7 @@ logging:
 jwt:
   secret: "myverysecuresecretkeymyverysecuresecretkey"
   expirationMs: 3600000
+
+app:
+  upload:
+    base-dir: /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/uploads
