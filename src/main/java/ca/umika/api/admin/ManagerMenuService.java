@@ -74,10 +74,8 @@ public class ManagerMenuService {
                 ));
 
         Set<UUID> visibleMenuIds = new LinkedHashSet<>();
-        for (SystemMenuEntity menu : allMenus) {
-            if (isVisibleToRole(menu, directAllowedMenuIds, menuMap)) {
-                visibleMenuIds.add(menu.getId());
-            }
+        for (UUID menuId : directAllowedMenuIds) {
+            includeWithAncestors(menuId, visibleMenuIds, menuMap);
         }
 
         if (visibleMenuIds.isEmpty()) {
@@ -93,27 +91,17 @@ public class ManagerMenuService {
         return buildTree(menus);
     }
 
-    private boolean isVisibleToRole(
-            SystemMenuEntity menu,
-            Set<UUID> directAllowedMenuIds,
-            Map<UUID, SystemMenuEntity> menuMap
-    ) {
-        if (directAllowedMenuIds.contains(menu.getId())) {
-            return true;
+    private void includeWithAncestors(UUID menuId, Set<UUID> visibleMenuIds, Map<UUID, SystemMenuEntity> menuMap) {
+        if (menuId == null || !visibleMenuIds.add(menuId)) {
+            return;
         }
 
-        UUID parentId = menu.getParentId();
-        while (parentId != null) {
-            if (directAllowedMenuIds.contains(parentId)) {
-                return true;
-            }
-            SystemMenuEntity parent = menuMap.get(parentId);
-            if (parent == null) {
-                break;
-            }
-            parentId = parent.getParentId();
+        SystemMenuEntity menu = menuMap.get(menuId);
+        if (menu == null) {
+            return;
         }
-        return false;
+
+        includeWithAncestors(menu.getParentId(), visibleMenuIds, menuMap);
     }
 
     private List<ManagerMenuNodeDto> buildTree(List<SystemMenuEntity> menus) {

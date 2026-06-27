@@ -1,7 +1,11 @@
 package ca.umika.api.store;
 
 import ca.umika.api.admin.UserPermissionRepository;
+import ca.umika.api.admin.UserPermissionEntity;
 import ca.umika.api.common.web.ResourceNotFoundException;
+import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -39,12 +43,36 @@ public class LocationSettingService {
     }
 
     @Transactional(readOnly = true)
-    public Page<LocationSettingDto> findAll(Authentication authentication, Pageable pageable, UUID locationId) {
-        assertPermission(authentication, locationId);
+    public Page<LocationSettingDto> findAll(Authentication authentication, Pageable pageable, UUID locationId, String settingGroup) {
+        String normalizedGroup = normalizeSettingGroup(settingGroup);
         if (locationId != null) {
+            assertPermission(authentication, locationId);
+            if (normalizedGroup != null) {
+                return repository.findByLocationIdAndSettingGroupIgnoreCase(locationId, normalizedGroup, pageable).map(mapper::toDto);
+            }
             return repository.findByLocationId(locationId, pageable).map(mapper::toDto);
         }
-        return repository.findAll(pageable).map(mapper::toDto);
+
+        UUID userId = resolveUserId(authentication);
+        if (hasGlobalManagePermission(userId)) {
+            if (normalizedGroup != null) {
+                return repository.findBySettingGroupIgnoreCase(normalizedGroup, pageable).map(mapper::toDto);
+            }
+            return repository.findAll(pageable).map(mapper::toDto);
+        }
+
+        List<UUID> allowedLocationIds = resolveAllowedLocationIds(userId);
+        if (allowedLocationIds.isEmpty()) {
+            if (hasAnyManagePermissionRecord(userId, null)) {
+                return Page.empty(pageable);
+            }
+            throw unauthorized();
+        }
+
+        if (normalizedGroup != null) {
+            return repository.findByLocationIdInAndSettingGroupIgnoreCase(allowedLocationIds, normalizedGroup, pageable).map(mapper::toDto);
+        }
+        return repository.findByLocationIdIn(allowedLocationIds, pageable).map(mapper::toDto);
     }
 
     @Transactional(readOnly = true)
@@ -58,9 +86,11 @@ public class LocationSettingService {
     public LocationSettingDto create(Authentication authentication, LocationSettingDto dto) {
         assertPermission(authentication, dto.locationId());
         ensureLocationExists(dto.locationId());
-        ensureUniqueSetting(dto.locationId(), dto.settingKey(), null);
+        String normalizedGroup = normalizeSettingGroup(dto.settingGroup());
+        ensureUniqueSetting(dto.locationId(), normalizedGroup, dto.settingKey(), null);
         LocationSettingEntity entity = mapper.toEntity(dto);
         entity.setId(null);
+        entity.setSettingGroup(normalizedGroup);
         return mapper.toDto(repository.save(entity));
     }
 
@@ -69,8 +99,10 @@ public class LocationSettingService {
                 .orElseThrow(() -> new ResourceNotFoundException("LocationSetting not found: " + id));
         assertPermission(authentication, entity.getLocationId());
         ensureLocationExists(dto.locationId());
-        ensureUniqueSetting(dto.locationId(), dto.settingKey(), id);
+        String normalizedGroup = normalizeSettingGroup(dto.settingGroup());
+        ensureUniqueSetting(dto.locationId(), normalizedGroup, dto.settingKey(), id);
         mapper.updateEntity(entity, dto);
+        entity.setSettingGroup(normalizedGroup);
         return mapper.toDto(repository.save(entity));
     }
 
@@ -82,13 +114,7 @@ public class LocationSettingService {
     }
 
     private void assertPermission(Authentication authentication, UUID locationId) {
-        if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
-        }
-
-        UUID userId = userRepository.findByEmail(authentication.getName())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()))
-                .getId();
+        UUID userId = resolveUserId(authentication);
 
         boolean allowed = hasGlobalManagePermission(userId)
                 || (locationId != null && hasLocationManagePermission(userId, locationId));
@@ -114,11 +140,54 @@ public class LocationSettingService {
     }
 
     private boolean hasAnyManagePermissionRecord(UUID userId, UUID locationId) {
-        return userPermissionRepository.existsByUserIdAndPermissionCodeIgnoreCaseAndLocationIdIsNull(
+        if (userPermissionRepository.existsByUserIdAndPermissionCodeIgnoreCaseAndLocationIdIsNull(
                 userId, MANAGE_PERMISSION_CODE
-        ) || (locationId != null && userPermissionRepository.existsByUserIdAndPermissionCodeIgnoreCaseAndLocationId(
+        )) {
+            return true;
+        }
+
+        if (locationId != null && userPermissionRepository.existsByUserIdAndPermissionCodeIgnoreCaseAndLocationId(
                 userId, MANAGE_PERMISSION_CODE, locationId
-        ));
+        )) {
+            return true;
+        }
+
+        return !userPermissionRepository.findByUserIdAndPermissionCodeIgnoreCaseAndIsGrantedTrue(
+                userId, MANAGE_PERMISSION_CODE
+        ).isEmpty();
+    }
+
+    private List<UUID> resolveAllowedLocationIds(UUID userId) {
+        Set<UUID> locationIds = new LinkedHashSet<>();
+        for (UserPermissionEntity permission : userPermissionRepository
+                .findByUserIdAndPermissionCodeIgnoreCaseAndIsGrantedTrue(userId, MANAGE_PERMISSION_CODE)) {
+            if (permission.getLocationId() == null) {
+                return List.of();
+            }
+            locationIds.add(permission.getLocationId());
+        }
+        return locationIds.stream().toList();
+    }
+
+    private String normalizeSettingGroup(String settingGroup) {
+        if (settingGroup == null || settingGroup.isBlank()) {
+            return null;
+        }
+        return settingGroup.trim().toUpperCase();
+    }
+
+    private UUID resolveUserId(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
+            throw unauthorized();
+        }
+
+        return userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()))
+                .getId();
+    }
+
+    private ResponseStatusException unauthorized() {
+        return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing location setting permission");
     }
 
     private void ensureLocationExists(UUID locationId) {
@@ -130,12 +199,12 @@ public class LocationSettingService {
         }
     }
 
-    private void ensureUniqueSetting(UUID locationId, String settingKey, UUID currentId) {
-        repository.findByLocationIdAndSettingKeyIgnoreCase(locationId, settingKey)
+    private void ensureUniqueSetting(UUID locationId, String settingGroup, String settingKey, UUID currentId) {
+        repository.findByLocationIdAndSettingGroupIgnoreCaseAndSettingKeyIgnoreCase(locationId, settingGroup, settingKey)
                 .filter(existing -> currentId == null || !existing.getId().equals(currentId))
                 .ifPresent(existing -> {
                     throw new IllegalStateException(
-                            "Location setting already exists for location " + locationId + " and key " + settingKey
+                            "Location setting already exists for location " + locationId + ", group " + settingGroup + " and key " + settingKey
                     );
                 });
     }

@@ -6,6 +6,7 @@ import java.util.UUID;
 
 public record SystemSettingDto(
         UUID id,
+        String settingGroup,
         String settingKey,
         String settingValue,
         String description,

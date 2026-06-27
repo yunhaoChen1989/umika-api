@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,8 +29,8 @@ public class SystemSettingController {
     }
 
     @GetMapping
-    public Page<SystemSettingDto> findAll(Pageable pageable) {
-        return service.findAll(pageable);
+    public Page<SystemSettingDto> findAll(Pageable pageable, @RequestParam(required = false) String settingGroup) {
+        return service.findAll(pageable, settingGroup);
     }
 
     @GetMapping("/{id}")

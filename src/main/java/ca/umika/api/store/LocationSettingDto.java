@@ -6,6 +6,7 @@ import java.util.UUID;
 public record LocationSettingDto(
         UUID id,
         UUID locationId,
+        String settingGroup,
         String settingKey,
         String settingValue,
         String description,

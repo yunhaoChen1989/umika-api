@@ -11,6 +11,7 @@ public class SystemSettingMapper {
         }
         return new SystemSettingDto(
                 entity.getId(),
+                entity.getSettingGroup(),
                 entity.getSettingKey(),
                 entity.getSettingValue(),
                 entity.getDescription(),
@@ -26,8 +27,16 @@ public class SystemSettingMapper {
     }
 
     public void updateEntity(SystemSettingEntity entity, SystemSettingDto dto) {
+        entity.setSettingGroup(normalizeSettingGroup(dto.settingGroup()));
         entity.setSettingKey(dto.settingKey());
         entity.setSettingValue(dto.settingValue());
         entity.setDescription(dto.description());
-}
+    }
+
+    private String normalizeSettingGroup(String settingGroup) {
+        if (settingGroup == null || settingGroup.isBlank()) {
+            return "GENERAL";
+        }
+        return settingGroup.trim().toUpperCase();
+    }
 }

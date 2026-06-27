@@ -20,6 +20,9 @@ public class LocationSettingEntity extends BaseEntity {
     @Column(name = "location_id", nullable = false)
     private UUID locationId;
 
+    @Column(name = "setting_group", nullable = false)
+    private String settingGroup;
+
     @Column(name = "setting_key", nullable = false)
     private String settingKey;
 
@@ -43,6 +46,14 @@ public class LocationSettingEntity extends BaseEntity {
 
     public void setLocationId(UUID locationId) {
         this.locationId = locationId;
+    }
+
+    public String getSettingGroup() {
+        return settingGroup;
+    }
+
+    public void setSettingGroup(String settingGroup) {
+        this.settingGroup = settingGroup;
     }
 
     public String getSettingKey() {

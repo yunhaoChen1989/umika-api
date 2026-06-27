@@ -32,9 +32,10 @@ public class LocationSettingController {
     public Page<LocationSettingDto> findAll(
             Authentication authentication,
             Pageable pageable,
-            @RequestParam(required = false) UUID locationId
+            @RequestParam(required = false) UUID locationId,
+            @RequestParam(required = false) String settingGroup
     ) {
-        return service.findAll(authentication, pageable, locationId);
+        return service.findAll(authentication, pageable, locationId, settingGroup);
     }
 
     @GetMapping("/{id}")

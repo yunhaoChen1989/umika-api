@@ -153,7 +153,7 @@ public class AuthService {
     }
 
     private int resolveReferralSignupPoints() {
-        return systemSettingRepository.findBySettingKey("REFERRAL_SIGNUP_POINTS")
+        return systemSettingRepository.findBySettingGroupAndSettingKeyIgnoreCase("REFERRAL", "REFERRAL_SIGNUP_POINTS")
                 .map(setting -> {
                     try {
                         return Integer.parseInt(setting.getSettingValue());

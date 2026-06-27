@@ -12,6 +12,7 @@ public class LocationSettingMapper {
         return new LocationSettingDto(
                 entity.getId(),
                 entity.getLocationId(),
+                entity.getSettingGroup(),
                 entity.getSettingKey(),
                 entity.getSettingValue(),
                 entity.getDescription(),
@@ -28,8 +29,16 @@ public class LocationSettingMapper {
 
     public void updateEntity(LocationSettingEntity entity, LocationSettingDto dto) {
         entity.setLocationId(dto.locationId());
+        entity.setSettingGroup(normalizeSettingGroup(dto.settingGroup()));
         entity.setSettingKey(dto.settingKey());
         entity.setSettingValue(dto.settingValue());
         entity.setDescription(dto.description());
+    }
+
+    private String normalizeSettingGroup(String settingGroup) {
+        if (settingGroup == null || settingGroup.isBlank()) {
+            return "GENERAL";
+        }
+        return settingGroup.trim().toUpperCase();
     }
 }

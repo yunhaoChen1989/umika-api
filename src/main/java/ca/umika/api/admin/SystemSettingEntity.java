@@ -1,8 +1,12 @@
 package ca.umika.api.admin;
 
-import jakarta.persistence.*;
 import ca.umika.api.common.persistence.BaseEntity;
-import java.time.LocalDate;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import java.util.UUID;
 
 @Entity
@@ -13,6 +17,9 @@ public class SystemSettingEntity extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "setting_group", nullable = false)
+    private String settingGroup;
+
     @Column(name = "setting_key", nullable = false)
     private String settingKey;
 
@@ -21,12 +28,20 @@ public class SystemSettingEntity extends BaseEntity {
 
     @Column(name = "description")
     private String description;
-public UUID getId() {
+    public UUID getId() {
         return id;
     }
 
     public void setId(UUID id) {
         this.id = id;
+    }
+
+    public String getSettingGroup() {
+        return settingGroup;
+    }
+
+    public void setSettingGroup(String settingGroup) {
+        this.settingGroup = settingGroup;
     }
 
     public String getSettingKey() {
