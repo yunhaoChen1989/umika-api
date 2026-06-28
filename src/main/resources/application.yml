@@ -16,7 +16,7 @@ spring:
     enabled: true
     baseline-on-migrate: true
     baseline-version: 9
-    locations: filesystem:/Users/chen/Documents/Umika Sushi/SQL
+    locations: filesystem:/Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/SQL
 
 server:
   port: ${SERVER_PORT:8080}
