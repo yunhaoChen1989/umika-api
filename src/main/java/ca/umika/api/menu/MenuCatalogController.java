@@ -1,6 +1,8 @@
 package ca.umika.api.menu;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.UUID;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -18,7 +20,11 @@ public class MenuCatalogController {
     }
 
     @GetMapping
-    public MenuCatalogResponseDto resolve(@RequestParam(required = false) String locationCode) {
-        return service.resolve(locationCode);
+    public MenuCatalogResponseDto resolve(
+            Authentication authentication,
+            @RequestParam(required = false) UUID locationId,
+            @RequestParam(required = false) String locationCode
+    ) {
+        return service.resolve(authentication, locationId, locationCode);
     }
 }

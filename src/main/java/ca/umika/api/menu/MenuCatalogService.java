@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,36 +23,46 @@ public class MenuCatalogService {
     private final LocationRepository locationRepository;
     private final MenuCategoryRepository categoryRepository;
     private final MenuItemRepository itemRepository;
+    private final MenuItemImageRepository imageRepository;
     private final LocationMenuOverrideRepository overrideRepository;
+    private final MenuAccessService menuAccessService;
 
     public MenuCatalogService(
             LocationRepository locationRepository,
             MenuCategoryRepository categoryRepository,
             MenuItemRepository itemRepository,
-            LocationMenuOverrideRepository overrideRepository
+            MenuItemImageRepository imageRepository,
+            LocationMenuOverrideRepository overrideRepository,
+            MenuAccessService menuAccessService
     ) {
         this.locationRepository = locationRepository;
         this.categoryRepository = categoryRepository;
         this.itemRepository = itemRepository;
+        this.imageRepository = imageRepository;
         this.overrideRepository = overrideRepository;
+        this.menuAccessService = menuAccessService;
     }
 
-    public MenuCatalogResponseDto resolve(String locationCode) {
-        UUID locationId = resolveLocationId(locationCode);
+    public MenuCatalogResponseDto resolve(Authentication authentication, UUID locationId, String locationCode) {
+        UUID resolvedLocationId = locationId != null ? locationId : resolveLocationId(locationCode);
+        MenuAccessService.MenuAccessContext access = menuAccessService.assertReadAccess(authentication, resolvedLocationId);
+        resolvedLocationId = access.locationId();
 
         List<MenuCategoryEntity> categories = new ArrayList<>(categoryRepository.findAllByIsDeletedFalseAndLocationIdIsNullOrderBySortOrderAscCreatedAtAsc());
-        if (locationId != null) {
-            categories.addAll(categoryRepository.findAllByIsDeletedFalseAndLocationIdOrderBySortOrderAscCreatedAtAsc(locationId));
+        if (resolvedLocationId != null) {
+            categories.addAll(categoryRepository.findAllByIsDeletedFalseAndLocationIdOrderBySortOrderAscCreatedAtAsc(resolvedLocationId));
         }
 
         List<MenuItemEntity> items = new ArrayList<>(itemRepository.findAllByIsDeletedFalseAndLocationIdIsNullOrderByDisplayOrderAscCreatedAtAsc());
-        if (locationId != null) {
-            items.addAll(itemRepository.findAllByIsDeletedFalseAndLocationIdOrderByDisplayOrderAscCreatedAtAsc(locationId));
+        if (resolvedLocationId != null) {
+            items.addAll(itemRepository.findAllByIsDeletedFalseAndLocationIdOrderByDisplayOrderAscCreatedAtAsc(resolvedLocationId));
         }
 
-        Map<OverrideKey, LocationMenuOverrideEntity> overridesByKey = locationId == null
+        Map<UUID, String> imageUrlsByMenuItemId = resolveImageUrls(items);
+
+        Map<OverrideKey, LocationMenuOverrideEntity> overridesByKey = resolvedLocationId == null
                 ? Map.of()
-                : overrideRepository.findByLocationId(locationId).stream()
+                : overrideRepository.findByLocationId(resolvedLocationId).stream()
                         .collect(Collectors.toMap(
                                 override -> new OverrideKey(override.getTargetType(), override.getTargetId()),
                                 Function.identity(),
@@ -93,6 +104,7 @@ public class MenuCatalogService {
                     pickString(item.getName(), override == null ? null : override.getCustomName()),
                     pickString(item.getDescription(), override == null ? null : override.getCustomDescription()),
                     pickBigDecimal(item.getPrice(), override == null ? null : override.getCustomPrice()),
+                    pickString(imageUrlsByMenuItemId.get(item.getId()), override == null ? null : override.getCustomImageUrl()),
                     item.getSku(),
                     pickInteger(item.getDisplayOrder(), override == null ? null : override.getSortOrder()),
                     resolveVisible(item.getIsAvailable(), item.getIsDeleted(), override == null ? null : override.getIsVisible())
@@ -108,6 +120,25 @@ public class MenuCatalogService {
                 .toList();
 
         return new MenuCatalogResponseDto(result);
+    }
+
+    private Map<UUID, String> resolveImageUrls(List<MenuItemEntity> items) {
+        List<UUID> itemIds = items.stream().map(MenuItemEntity::getId).toList();
+        if (itemIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return imageRepository.findByMenuItemIdIn(itemIds).stream()
+                .sorted(Comparator
+                        .comparing((MenuItemImageEntity image) -> !Boolean.TRUE.equals(image.getIsPrimary()))
+                        .thenComparing(image -> image.getSortOrder() == null ? 0 : image.getSortOrder())
+                        .thenComparing(MenuItemImageEntity::getId))
+                .collect(Collectors.toMap(
+                        MenuItemImageEntity::getMenuItemId,
+                        MenuItemImageEntity::getImageUrl,
+                        (first, ignored) -> first,
+                        LinkedHashMap::new
+                ));
     }
 
     private List<MenuCatalogItemDto> sortItems(List<MenuCatalogItemDto> items) {

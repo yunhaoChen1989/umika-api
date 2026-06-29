@@ -14,6 +14,7 @@ public record LocationMenuOverrideDto(
         String customName,
         String customDescription,
         BigDecimal customPrice,
+        String customImageUrl,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

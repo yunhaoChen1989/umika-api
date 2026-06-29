@@ -42,6 +42,9 @@ public class LocationMenuOverrideEntity extends BaseEntity {
     @Column(name = "custom_price")
     private BigDecimal customPrice;
 
+    @Column(name = "custom_image_url")
+    private String customImageUrl;
+
     public UUID getId() {
         return id;
     }
@@ -112,5 +115,13 @@ public class LocationMenuOverrideEntity extends BaseEntity {
 
     public void setCustomPrice(BigDecimal customPrice) {
         this.customPrice = customPrice;
+    }
+
+    public String getCustomImageUrl() {
+        return customImageUrl;
+    }
+
+    public void setCustomImageUrl(String customImageUrl) {
+        this.customImageUrl = customImageUrl;
     }
 }

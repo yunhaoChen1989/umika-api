@@ -6,8 +6,10 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -22,55 +24,107 @@ public class LocationMenuOverrideService {
     private final LocationRepository locationRepository;
     private final MenuCategoryRepository categoryRepository;
     private final MenuItemRepository itemRepository;
+    private final MenuItemImageStorageService storageService;
+    private final MenuAccessService menuAccessService;
 
     public LocationMenuOverrideService(
             LocationMenuOverrideRepository repository,
             LocationMenuOverrideMapper mapper,
             LocationRepository locationRepository,
             MenuCategoryRepository categoryRepository,
-            MenuItemRepository itemRepository
+            MenuItemRepository itemRepository,
+            MenuItemImageStorageService storageService,
+            MenuAccessService menuAccessService
     ) {
         this.repository = repository;
         this.mapper = mapper;
         this.locationRepository = locationRepository;
         this.categoryRepository = categoryRepository;
         this.itemRepository = itemRepository;
+        this.storageService = storageService;
+        this.menuAccessService = menuAccessService;
     }
 
     @Transactional(readOnly = true)
-    public Page<LocationMenuOverrideDto> findAll(Pageable pageable) {
-        return repository.findAll(pageable).map(mapper::toDto);
+    public Page<LocationMenuOverrideDto> findAll(Authentication authentication, Pageable pageable, UUID locationId) {
+        MenuAccessService.MenuAccessContext access = menuAccessService.assertReadAccess(authentication, locationId);
+        if (access.locationId() == null) {
+            return repository.findAll(pageable).map(mapper::toDto);
+        }
+        return repository.findByLocationId(access.locationId(), pageable).map(mapper::toDto);
     }
 
     @Transactional(readOnly = true)
-    public LocationMenuOverrideDto findById(UUID id) {
-        return repository.findById(id)
-                .map(mapper::toDto)
+    public LocationMenuOverrideDto findById(Authentication authentication, UUID id) {
+        LocationMenuOverrideEntity entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("LocationMenuOverride not found: " + id));
+        menuAccessService.assertReadAccess(authentication, entity.getLocationId());
+        return mapper.toDto(entity);
     }
 
-    public LocationMenuOverrideDto create(LocationMenuOverrideDto dto) {
+    public LocationMenuOverrideDto create(Authentication authentication, LocationMenuOverrideDto dto) {
+        menuAccessService.assertWriteAccess(authentication, dto.locationId());
         validateLocation(dto.locationId());
+        validateOverrideFields(dto);
         validateTarget(dto.targetType(), dto.targetId());
         LocationMenuOverrideEntity entity = mapper.toEntity(dto);
         entity.setId(null);
         return mapper.toDto(repository.save(entity));
     }
 
-    public LocationMenuOverrideDto update(UUID id, LocationMenuOverrideDto dto) {
+    public LocationMenuOverrideDto update(Authentication authentication, UUID id, LocationMenuOverrideDto dto) {
         LocationMenuOverrideEntity entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("LocationMenuOverride not found: " + id));
+        menuAccessService.assertWriteAccess(authentication, entity.getLocationId());
+        menuAccessService.assertWriteAccess(authentication, dto.locationId());
         validateLocation(dto.locationId());
+        validateOverrideFields(dto);
         validateTarget(dto.targetType(), dto.targetId());
         mapper.updateEntity(entity, dto);
         return mapper.toDto(repository.save(entity));
     }
 
-    public void delete(UUID id) {
-        if (!repository.existsById(id)) {
-            throw new ResourceNotFoundException("LocationMenuOverride not found: " + id);
-        }
-        repository.deleteById(id);
+    public LocationMenuOverrideDto upsert(Authentication authentication, LocationMenuOverrideDto dto) {
+        menuAccessService.assertWriteAccess(authentication, dto.locationId());
+        validateLocation(dto.locationId());
+        validateOverrideFields(dto);
+        validateTarget(dto.targetType(), dto.targetId());
+        String targetType = normalizeTargetType(dto.targetType());
+        LocationMenuOverrideEntity entity = repository
+                .findByLocationIdAndTargetTypeAndTargetId(dto.locationId(), targetType, dto.targetId())
+                .orElseGet(LocationMenuOverrideEntity::new);
+        mapper.updateEntity(entity, dto);
+        return mapper.toDto(repository.save(entity));
+    }
+
+    public LocationMenuOverrideDto uploadItemOverrideImage(
+            Authentication authentication,
+            UUID locationId,
+            UUID menuItemId,
+            MultipartFile file,
+            String publicBaseUrl
+    ) {
+        menuAccessService.assertWriteAccess(authentication, locationId);
+        validateLocation(locationId);
+        validateTarget(ITEM, menuItemId);
+        String filename = storageService.store(file);
+        String imageUrl = buildPublicUrl(publicBaseUrl, filename);
+
+        LocationMenuOverrideEntity entity = repository
+                .findByLocationIdAndTargetTypeAndTargetId(locationId, ITEM, menuItemId)
+                .orElseGet(LocationMenuOverrideEntity::new);
+        entity.setLocationId(locationId);
+        entity.setTargetType(ITEM);
+        entity.setTargetId(menuItemId);
+        entity.setCustomImageUrl(imageUrl);
+        return mapper.toDto(repository.save(entity));
+    }
+
+    public void delete(Authentication authentication, UUID id) {
+        LocationMenuOverrideEntity entity = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("LocationMenuOverride not found: " + id));
+        menuAccessService.assertWriteAccess(authentication, entity.getLocationId());
+        repository.delete(entity);
     }
 
     private void validateLocation(UUID locationId) {
@@ -107,5 +161,20 @@ public class LocationMenuOverrideService {
 
     private String normalizeTargetType(String targetType) {
         return targetType == null ? null : targetType.trim().toUpperCase();
+    }
+
+    private void validateOverrideFields(LocationMenuOverrideDto dto) {
+        if (CATEGORY.equals(normalizeTargetType(dto.targetType()))
+                && (dto.customPrice() != null || dto.customImageUrl() != null)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "customPrice and customImageUrl are only valid for ITEM overrides");
+        }
+    }
+
+    private String buildPublicUrl(String publicBaseUrl, String filename) {
+        String base = publicBaseUrl == null ? "" : publicBaseUrl.trim();
+        if (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        return base + "/uploads/menu-item-images/" + filename;
     }
 }

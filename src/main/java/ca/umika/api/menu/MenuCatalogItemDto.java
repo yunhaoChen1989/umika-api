@@ -10,6 +10,7 @@ public record MenuCatalogItemDto(
         String name,
         String description,
         BigDecimal price,
+        String imageUrl,
         String sku,
         Integer displayOrder,
         Boolean isAvailable

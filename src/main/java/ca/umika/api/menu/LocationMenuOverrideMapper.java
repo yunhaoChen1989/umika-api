@@ -19,6 +19,7 @@ public class LocationMenuOverrideMapper {
                 entity.getCustomName(),
                 entity.getCustomDescription(),
                 entity.getCustomPrice(),
+                entity.getCustomImageUrl(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );
@@ -39,6 +40,7 @@ public class LocationMenuOverrideMapper {
         entity.setCustomName(dto.customName());
         entity.setCustomDescription(dto.customDescription());
         entity.setCustomPrice(dto.customPrice());
+        entity.setCustomImageUrl(dto.customImageUrl());
     }
 
     private String normalizeTargetType(String targetType) {
