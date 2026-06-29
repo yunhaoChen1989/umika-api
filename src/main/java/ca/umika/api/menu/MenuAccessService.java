@@ -14,7 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class MenuAccessService {
 
-    public static final String MANAGE_PERMISSION_CODE = "MENU_MANAGE";
+    public static final String MANAGE_PERMISSION_CODE = "LOCATION_SETTING_MANAGE";
 
     private final UserRepository userRepository;
     private final AccountRoleService accountRoleService;
