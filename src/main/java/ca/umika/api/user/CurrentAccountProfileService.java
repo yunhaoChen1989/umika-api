@@ -2,6 +2,8 @@ package ca.umika.api.user;
 
 import ca.umika.api.auth.AccountRoleService;
 import ca.umika.api.reward.RewardWalletRepository;
+import ca.umika.api.store.LocationEntity;
+import ca.umika.api.store.LocationRepository;
 import java.util.Optional;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -16,17 +18,20 @@ public class CurrentAccountProfileService {
     private final UserProfileRepository userProfileRepository;
     private final RewardWalletRepository rewardWalletRepository;
     private final AccountRoleService accountRoleService;
+    private final LocationRepository locationRepository;
 
     public CurrentAccountProfileService(
             UserRepository userRepository,
             UserProfileRepository userProfileRepository,
             RewardWalletRepository rewardWalletRepository,
-            AccountRoleService accountRoleService
+            AccountRoleService accountRoleService,
+            LocationRepository locationRepository
     ) {
         this.userRepository = userRepository;
         this.userProfileRepository = userProfileRepository;
         this.rewardWalletRepository = rewardWalletRepository;
         this.accountRoleService = accountRoleService;
+        this.locationRepository = locationRepository;
     }
 
     @Transactional(readOnly = true)
@@ -85,6 +90,39 @@ public class CurrentAccountProfileService {
 
         userProfileRepository.save(profile);
         return getByEmail(email);
+    }
+
+    @Transactional(readOnly = true)
+    public CurrentAccountDefaultLocationDto getDefaultLocationByEmail(String email) {
+        UserEntity user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + email));
+
+        if (user.getLocationId() != null) {
+            return locationRepository.findById(user.getLocationId())
+                    .map(this::toDefaultLocationDto)
+                    .orElseGet(this::findFirstLocation);
+        }
+        return findFirstLocation();
+    }
+
+    private CurrentAccountDefaultLocationDto findFirstLocation() {
+        return locationRepository.findFirstByOrderByCreatedAtAsc()
+                .map(this::toDefaultLocationDto)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No locations found"));
+    }
+
+    private CurrentAccountDefaultLocationDto toDefaultLocationDto(LocationEntity location) {
+        return new CurrentAccountDefaultLocationDto(
+                location.getId(),
+                location.getLocationCode(),
+                location.getName(),
+                location.getAddressLine1(),
+                location.getAddressLine2(),
+                location.getCity(),
+                location.getProvince(),
+                location.getPostalCode(),
+                location.getCountry()
+        );
     }
 
     private String blankToNull(String value) {

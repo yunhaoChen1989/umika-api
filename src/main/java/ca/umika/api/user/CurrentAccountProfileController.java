@@ -29,6 +29,14 @@ public class CurrentAccountProfileController {
         return service.getByEmail(authentication.getName());
     }
 
+    @GetMapping("/default-location")
+    public CurrentAccountDefaultLocationDto defaultLocation(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        return service.getDefaultLocationByEmail(authentication.getName());
+    }
+
     @PatchMapping("/profile")
     public CurrentAccountProfileDto update(
             Authentication authentication,

@@ -2,16 +2,16 @@ package ca.umika.api.order;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.net.URI;
-import java.util.List;
+import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,29 +28,44 @@ public class OrderController {
     }
 
     @GetMapping
-    public Page<OrderDto> findAll(Pageable pageable) {
-        return service.findAll(pageable);
+    public Page<OrderResponse> findAll(Authentication authentication, Pageable pageable) {
+        return service.findAll(authentication, pageable);
     }
 
     @GetMapping("/{id}")
-    public OrderDto findById(@PathVariable UUID id) {
-        return service.findById(id);
+    public OrderResponse findById(Authentication authentication, @PathVariable UUID id) {
+        return service.findById(authentication, id);
     }
 
-    @PostMapping
-    public ResponseEntity<OrderDto> create(@RequestBody OrderDto dto) {
-        OrderDto created = service.create(dto);
+    @PostMapping("/redemption-preview")
+    public OrderRedemptionPreviewResponse previewRedemption(
+            Authentication authentication,
+            @RequestBody OrderRedemptionPreviewRequest request
+    ) {
+        return service.previewRedemption(authentication, request);
+    }
+
+    @PostMapping("/checkout")
+    public ResponseEntity<OrderResponse> checkout(
+            Authentication authentication,
+            @RequestBody OrderCheckoutRequest request
+    ) {
+        OrderResponse created = service.checkout(authentication, request);
         return ResponseEntity.created(URI.create("/api/v1/orders/" + created.id())).body(created);
     }
 
-    @PutMapping("/{id}")
-    public OrderDto update(@PathVariable UUID id, @RequestBody OrderDto dto) {
-        return service.update(id, dto);
+    @PatchMapping("/{id}/status")
+    public OrderResponse updateStatus(
+            Authentication authentication,
+            @PathVariable UUID id,
+            @RequestBody OrderStatusUpdateRequest request
+    ) {
+        return service.updateStatus(authentication, id, request);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        service.delete(id);
+    public ResponseEntity<Void> delete(Authentication authentication, @PathVariable UUID id) {
+        service.delete(authentication, id);
         return ResponseEntity.noContent().build();
     }
 }

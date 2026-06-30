@@ -32,6 +32,9 @@ public class OrderItemEntity extends BaseEntity {
     @Column(name = "unit_price", nullable = false)
     private BigDecimal unitPrice;
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @Column(name = "total_price", nullable = false)
     private BigDecimal totalPrice;
 
@@ -84,6 +87,14 @@ public UUID getId() {
 
     public void setUnitPrice(BigDecimal unitPrice) {
         this.unitPrice = unitPrice;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 
     public BigDecimal getTotalPrice() {

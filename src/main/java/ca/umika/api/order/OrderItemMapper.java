@@ -16,6 +16,7 @@ public class OrderItemMapper {
                 entity.getItemName(),
                 entity.getQuantity(),
                 entity.getUnitPrice(),
+                entity.getImageUrl(),
                 entity.getTotalPrice(),
                 entity.getOptionSnapshot(),
                 entity.getCreatedAt()
@@ -34,6 +35,7 @@ public class OrderItemMapper {
         entity.setItemName(dto.itemName());
         entity.setQuantity(dto.quantity());
         entity.setUnitPrice(dto.unitPrice());
+        entity.setImageUrl(dto.imageUrl());
         entity.setTotalPrice(dto.totalPrice());
         entity.setOptionSnapshot(dto.optionSnapshot());
 }

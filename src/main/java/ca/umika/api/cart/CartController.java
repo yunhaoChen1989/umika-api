@@ -1,11 +1,18 @@
 package ca.umika.api.cart;
 
-import java.util.Optional;
+import java.net.URI;
 import java.util.UUID;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/cart")
@@ -17,57 +24,62 @@ public class CartController {
         this.cartService = cartService;
     }
 
-    // Create a new cart
     @PostMapping
-    public ResponseEntity<CartEntity> createCart(@RequestBody CartEntity cart) {
-        CartEntity created = cartService.createCart(cart);
-        return ResponseEntity.ok(created);
+    public ResponseEntity<CartResponse> getOrCreateActiveCart(
+            Authentication authentication,
+            @RequestBody CartCreateRequest request
+    ) {
+        CartResponse cart = cartService.getOrCreateActiveCart(authentication, request);
+        return ResponseEntity.created(URI.create("/api/v1/cart/" + cart.id())).body(cart);
     }
 
-    // Get cart by ID
     @GetMapping("/{id}")
-    public ResponseEntity<CartEntity> getCart(@PathVariable UUID id) {
-        Optional<CartEntity> cart = cartService.getCart(id);
-        return cart.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    public CartResponse getCart(
+            Authentication authentication,
+            @PathVariable UUID id,
+            @RequestParam(required = false) String sessionId
+    ) {
+        return cartService.getCart(authentication, id, sessionId);
     }
 
-    // Update cart
-    @PutMapping("/{id}")
-    public ResponseEntity<CartEntity> updateCart(@PathVariable UUID id, @RequestBody CartEntity cart) {
-        cart.setId(id);
-        CartEntity updated = cartService.updateCart(cart);
-        return ResponseEntity.ok(updated);
-    }
-
-    // Delete cart
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCart(@PathVariable UUID id) {
-        cartService.deleteCart(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    // Add item to cart
     @PostMapping("/{cartId}/items")
-    public ResponseEntity<CartItemEntity> addItem(@PathVariable UUID cartId, @RequestBody CartItemEntity item) {
-        // associate cart
-        CartEntity cart = cartService.getCart(cartId).orElseThrow(() -> new RuntimeException("Cart not found"));
-        item.setCart(cart);
-        CartItemEntity saved = cartService.addItemToCart(item);
-        return ResponseEntity.ok(saved);
+    public CartResponse addItem(
+            Authentication authentication,
+            @PathVariable UUID cartId,
+            @RequestBody CartAddItemRequest request,
+            @RequestParam(required = false) String sessionId
+    ) {
+        return cartService.addItem(authentication, cartId, request, sessionId);
     }
 
-    // Get items for a cart
-    @GetMapping("/{cartId}/items")
-    public ResponseEntity<Page<CartItemEntity>> getItems(@PathVariable UUID cartId, Pageable pageable) {
-        Page<CartItemEntity> items = cartService.getItemsForCart(cartId, pageable);
-        return ResponseEntity.ok(items);
+    @PutMapping("/{cartId}/items/{itemId}")
+    public CartResponse updateItem(
+            Authentication authentication,
+            @PathVariable UUID cartId,
+            @PathVariable UUID itemId,
+            @RequestBody CartUpdateItemRequest request,
+            @RequestParam(required = false) String sessionId
+    ) {
+        return cartService.updateItem(authentication, cartId, itemId, request, sessionId);
     }
 
-    // Delete an item from cart
     @DeleteMapping("/{cartId}/items/{itemId}")
-    public ResponseEntity<Void> deleteItem(@PathVariable UUID cartId, @PathVariable UUID itemId) {
-        // optional check that item belongs to cart could be added
-        cartService.deleteItem(itemId);
+    public CartResponse deleteItem(
+            Authentication authentication,
+            @PathVariable UUID cartId,
+            @PathVariable UUID itemId,
+            @RequestParam(required = false) String sessionId
+    ) {
+        return cartService.deleteItem(authentication, cartId, itemId, sessionId);
+    }
+
+    @DeleteMapping("/{cartId}")
+    public ResponseEntity<Void> abandonCart(
+            Authentication authentication,
+            @PathVariable UUID cartId,
+            @RequestParam(required = false) String sessionId
+    ) {
+        cartService.abandonCart(authentication, cartId, sessionId);
         return ResponseEntity.noContent().build();
     }
 }

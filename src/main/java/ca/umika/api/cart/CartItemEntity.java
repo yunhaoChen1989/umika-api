@@ -29,6 +29,9 @@ public class CartItemEntity extends BaseEntity {
     @Column(name = "unit_price", nullable = false)
     private BigDecimal unitPrice;
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @Column(name = "options", columnDefinition = "JSONB")
     private String options; // store JSON as string
 
@@ -45,6 +48,8 @@ public class CartItemEntity extends BaseEntity {
     public void setQuantity(int quantity) { this.quantity = quantity; }
     public BigDecimal getUnitPrice() { return unitPrice; }
     public void setUnitPrice(BigDecimal unitPrice) { this.unitPrice = unitPrice; }
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
     public String getOptions() { return options; }
     public void setOptions(String options) { this.options = options; }
 }

@@ -13,6 +13,7 @@ public record OrderItemDto(
         String itemName,
         Integer quantity,
         BigDecimal unitPrice,
+        String imageUrl,
         BigDecimal totalPrice,
         Map<String, Object> optionSnapshot,
         LocalDateTime createdAt
