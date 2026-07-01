@@ -44,5 +44,6 @@ jwt:
   expirationMs: 3600000
 
 app:
+  public-base-url: ${APP_PUBLIC_BASE_URL:https://umikasushi.ca}
   upload:
     base-dir: /Users/chen/Library/CloudStorage/GoogleDrive-sucre19890307@gmail.com/My Drive/umikaSushi/backend/umika-api/uploads

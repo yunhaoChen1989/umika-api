@@ -47,7 +47,7 @@ public class LocationMenuOverrideService {
 
     @Transactional(readOnly = true)
     public Page<LocationMenuOverrideDto> findAll(Authentication authentication, Pageable pageable, UUID locationId) {
-        MenuAccessService.MenuAccessContext access = menuAccessService.assertReadAccess(authentication, locationId);
+        MenuAccessService.MenuAccessContext access = menuAccessService.assertWriteAccess(authentication, locationId);
         if (access.locationId() == null) {
             return repository.findAll(pageable).map(mapper::toDto);
         }
@@ -58,7 +58,7 @@ public class LocationMenuOverrideService {
     public LocationMenuOverrideDto findById(Authentication authentication, UUID id) {
         LocationMenuOverrideEntity entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("LocationMenuOverride not found: " + id));
-        menuAccessService.assertReadAccess(authentication, entity.getLocationId());
+        menuAccessService.assertWriteAccess(authentication, entity.getLocationId());
         return mapper.toDto(entity);
     }
 

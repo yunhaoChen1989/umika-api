@@ -18,6 +18,7 @@ public record OrderResponse(
         BigDecimal totalDiscount,
         BigDecimal taxRate,
         BigDecimal taxAmount,
+        BigDecimal tipAmount,
         BigDecimal finalTotal,
         String customerNote,
         String internalNote,

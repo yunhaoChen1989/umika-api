@@ -1,11 +1,15 @@
 package ca.umika.api.reward;
 
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface RewardTransactionRepository extends JpaRepository<RewardTransactionEntity, UUID> {
+    Page<RewardTransactionEntity> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+
     @Query("select coalesce(sum(t.points), 0) from RewardTransactionEntity t where t.userId = :userId")
     Integer sumPointsByUserId(@Param("userId") UUID userId);
 

@@ -5,6 +5,7 @@ import ca.umika.api.common.web.ResourceNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,17 +19,20 @@ public class MenuItemImageService {
     private final MenuItemImageMapper mapper;
     private final MenuItemRepository menuItemRepository;
     private final MenuItemImageStorageService storageService;
+    private final MenuAccessService menuAccessService;
 
     public MenuItemImageService(
             MenuItemImageRepository repository,
             MenuItemImageMapper mapper,
             MenuItemRepository menuItemRepository,
-            MenuItemImageStorageService storageService
+            MenuItemImageStorageService storageService,
+            MenuAccessService menuAccessService
     ) {
         this.repository = repository;
         this.mapper = mapper;
         this.menuItemRepository = menuItemRepository;
         this.storageService = storageService;
+        this.menuAccessService = menuAccessService;
     }
 
     @Transactional(readOnly = true)
@@ -43,15 +47,15 @@ public class MenuItemImageService {
                 .orElseThrow(() -> new ResourceNotFoundException("MenuItemImage not found: " + id));
     }
 
-    public MenuItemImageDto create(MenuItemImageDto dto) {
-        ensureMenuItemExists(dto.menuItemId());
+    public MenuItemImageDto create(Authentication authentication, MenuItemImageDto dto) {
+        menuAccessService.assertWriteAccess(authentication, resolveMenuItemLocationId(dto.menuItemId()));
         MenuItemImageEntity entity = mapper.toEntity(dto);
         entity.setId(null);
         return mapper.toDto(repository.save(entity));
     }
 
-    public MenuItemImageDto upload(UUID menuItemId, MultipartFile file, Boolean isPrimary, Integer sortOrder, String publicBaseUrl) {
-        ensureMenuItemExists(menuItemId);
+    public MenuItemImageDto upload(Authentication authentication, UUID menuItemId, MultipartFile file, Boolean isPrimary, Integer sortOrder, String publicBaseUrl) {
+        menuAccessService.assertWriteAccess(authentication, resolveMenuItemLocationId(menuItemId));
         String filename = storageService.store(file);
         String publicUrl = buildPublicUrl(publicBaseUrl, filename);
 
@@ -65,28 +69,30 @@ public class MenuItemImageService {
         return mapper.toDto(repository.save(entity));
     }
 
-    public MenuItemImageDto update(UUID id, MenuItemImageDto dto) {
-        ensureMenuItemExists(dto.menuItemId());
+    public MenuItemImageDto update(Authentication authentication, UUID id, MenuItemImageDto dto) {
         MenuItemImageEntity entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("MenuItemImage not found: " + id));
+        menuAccessService.assertWriteAccess(authentication, resolveMenuItemLocationId(entity.getMenuItemId()));
+        menuAccessService.assertWriteAccess(authentication, resolveMenuItemLocationId(dto.menuItemId()));
         mapper.updateEntity(entity, dto);
         return mapper.toDto(repository.save(entity));
     }
 
-    public void delete(UUID id) {
+    public void delete(Authentication authentication, UUID id) {
         MenuItemImageEntity entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("MenuItemImage not found: " + id));
+        menuAccessService.assertWriteAccess(authentication, resolveMenuItemLocationId(entity.getMenuItemId()));
         storageService.delete(entity.getImageUrl());
         repository.delete(entity);
     }
 
-    private void ensureMenuItemExists(UUID menuItemId) {
+    private UUID resolveMenuItemLocationId(UUID menuItemId) {
         if (menuItemId == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "menuItemId is required");
         }
-        if (!menuItemRepository.existsById(menuItemId)) {
-            throw new ResourceNotFoundException("MenuItem not found: " + menuItemId);
-        }
+        return menuItemRepository.findById(menuItemId)
+                .map(MenuItemEntity::getLocationId)
+                .orElseThrow(() -> new ResourceNotFoundException("MenuItem not found: " + menuItemId));
     }
 
     private String buildPublicUrl(String publicBaseUrl, String filename) {

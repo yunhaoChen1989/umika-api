@@ -33,6 +33,7 @@ public class BusinessSettingService {
             definition("REWARD", "POINTS_PER_DOLLAR", "Points per dollar", "Loyalty points earned per paid dollar.", "decimal", "points", "1"),
             definition("REWARD", "POINT_VALUE_CENTS", "Point value", "Cash redemption value of one point, in cents.", "decimal", "cents", "5"),
             definition("REWARD", "MAX_REDEMPTION_PERCENT", "Max redemption percent", "Maximum order subtotal percentage payable with points.", "decimal", "percent", "50"),
+            definition("REWARD", "MIN_REDEEM_POINTS", "Minimum redeem points", "Smallest point block customers can redeem.", "integer", "points", "100"),
             definition("REWARD", "BIRTHDAY_BONUS_POINTS", "Birthday bonus points", "Points granted for birthday reward.", "integer", "points", "100"),
             definition("REFERRAL", "REFERRAL_SIGNUP_POINTS", "Referral signup points", "Points awarded when a referred user registers.", "integer", "points", "50"),
             definition("REFERRAL", "REFERRAL_FIRST_ORDER_POINTS", "Referral first-order points", "Points awarded when referred user places first qualifying order.", "integer", "points", "100"),
@@ -66,6 +67,11 @@ public class BusinessSettingService {
     public BusinessSettingsResponse effective(Authentication authentication, UUID locationId, String locationCode) {
         UserEntity user = resolveUser(authentication);
         if (locationId == null && (locationCode == null || locationCode.isBlank())) {
+            if (isStoreRole(user.getId()) && user.getLocationId() != null) {
+                LocationEntity location = locationRepository.findById(user.getLocationId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Location not found: " + user.getLocationId()));
+                return buildResponse(location);
+            }
             assertCanReadGlobal(user.getId());
             return new BusinessSettingsResponse(null, null, "Global", buildItems(null));
         }
@@ -203,16 +209,22 @@ public class BusinessSettingService {
     }
 
     private void assertCanManage(UUID userId, UUID locationId) {
-        if (accountRoleService.resolveRoleNames(userId).contains("ROLE_ADMIN")) {
+        List<String> roleNames = accountRoleService.resolveRoleNames(userId);
+        if (roleNames.contains("ROLE_ADMIN")) {
             return;
         }
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
         boolean global = userPermissionRepository.existsByUserIdAndPermissionCodeIgnoreCaseAndIsGrantedTrueAndLocationIdIsNull(
                 userId, MANAGE_PERMISSION_CODE
         );
         boolean location = userPermissionRepository.existsByUserIdAndPermissionCodeIgnoreCaseAndIsGrantedTrueAndLocationId(
                 userId, MANAGE_PERMISSION_CODE, locationId
         );
-        if (!global && !location) {
+        boolean ownStoreRole = (roleNames.contains("ROLE_MANAGER") || roleNames.contains("ROLE_STAFF"))
+                && locationId != null
+                && locationId.equals(user.getLocationId());
+        if (!global && !location && !ownStoreRole) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing business setting permission");
         }
     }
@@ -227,6 +239,11 @@ public class BusinessSettingService {
         if (!global) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing business setting permission");
         }
+    }
+
+    private boolean isStoreRole(UUID userId) {
+        List<String> roleNames = accountRoleService.resolveRoleNames(userId);
+        return roleNames.contains("ROLE_MANAGER") || roleNames.contains("ROLE_STAFF");
     }
 
     private UserEntity resolveUser(Authentication authentication) {

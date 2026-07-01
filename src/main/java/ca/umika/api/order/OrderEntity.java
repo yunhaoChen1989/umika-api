@@ -44,6 +44,9 @@ public class OrderEntity extends BaseEntity {
     @Column(name = "tax_amount")
     private BigDecimal taxAmount;
 
+    @Column(name = "tip_amount")
+    private BigDecimal tipAmount;
+
     @Column(name = "final_total")
     private BigDecimal finalTotal;
 
@@ -150,6 +153,14 @@ public UUID getId() {
 
     public void setTaxAmount(BigDecimal taxAmount) {
         this.taxAmount = taxAmount;
+    }
+
+    public BigDecimal getTipAmount() {
+        return tipAmount;
+    }
+
+    public void setTipAmount(BigDecimal tipAmount) {
+        this.tipAmount = tipAmount;
     }
 
     public BigDecimal getFinalTotal() {

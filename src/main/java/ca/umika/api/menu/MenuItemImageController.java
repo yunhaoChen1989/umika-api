@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,37 +43,38 @@ public class MenuItemImageController {
     }
 
     @PostMapping
-    public ResponseEntity<MenuItemImageDto> create(@RequestBody MenuItemImageDto dto) {
-        MenuItemImageDto created = service.create(dto);
+    public ResponseEntity<MenuItemImageDto> create(Authentication authentication, @RequestBody MenuItemImageDto dto) {
+        MenuItemImageDto created = service.create(authentication, dto);
         return ResponseEntity.created(URI.create("/api/v1/menu-item-images/" + created.id())).body(created);
     }
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<MenuItemImageDto> upload(
+            Authentication authentication,
             @RequestParam UUID menuItemId,
             @RequestPart("file") MultipartFile file,
             @RequestParam(required = false) Boolean isPrimary,
             @RequestParam(required = false) Integer sortOrder
     ) {
         String publicBaseUrl = ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString();
-        MenuItemImageDto created = service.upload(menuItemId, file, isPrimary, sortOrder, publicBaseUrl);
+        MenuItemImageDto created = service.upload(authentication, menuItemId, file, isPrimary, sortOrder, publicBaseUrl);
         return ResponseEntity.created(URI.create("/api/v1/menu-item-images/" + created.id())).body(created);
     }
 
     @PutMapping("/{id}")
-    public MenuItemImageDto update(@PathVariable UUID id, @RequestBody MenuItemImageDto dto) {
-        return service.update(id, dto);
+    public MenuItemImageDto update(Authentication authentication, @PathVariable UUID id, @RequestBody MenuItemImageDto dto) {
+        return service.update(authentication, id, dto);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        service.delete(id);
+    public ResponseEntity<Void> delete(Authentication authentication, @PathVariable UUID id) {
+        service.delete(authentication, id);
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}/picture")
-    public ResponseEntity<Void> deletePicture(@PathVariable UUID id) {
-        service.delete(id);
+    public ResponseEntity<Void> deletePicture(Authentication authentication, @PathVariable UUID id) {
+        service.delete(authentication, id);
         return ResponseEntity.noContent().build();
     }
 }

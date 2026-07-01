@@ -1,5 +1,6 @@
 package ca.umika.api.order;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 public record OrderCheckoutRequest(
@@ -8,6 +9,7 @@ public record OrderCheckoutRequest(
         String orderType,
         UUID addressId,
         String customerNote,
-        Integer pointsToRedeem
+        Integer pointsToRedeem,
+        BigDecimal tipAmount
 ) {
 }

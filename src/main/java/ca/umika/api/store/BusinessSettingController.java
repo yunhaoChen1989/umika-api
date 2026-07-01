@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/business-settings")
+@RequestMapping({"/api/v1/business-settings", "/api/v1/manager/business-settings", "/api/manager/business-settings"})
 @Tag(name = "BusinessSetting")
 public class BusinessSettingController {
 

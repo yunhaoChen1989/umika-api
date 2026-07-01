@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/orders")
+@RequestMapping({"/api/v1/orders", "/api/orders"})
 @Tag(name = "Order")
 public class OrderController {
 
@@ -32,9 +32,10 @@ public class OrderController {
     public Page<OrderResponse> findAll(
             Authentication authentication,
             Pageable pageable,
-            @RequestParam(required = false) String userEmail
+            @RequestParam(required = false) String userEmail,
+            @RequestParam(required = false) String email
     ) {
-        return service.findAll(authentication, pageable, userEmail);
+        return service.findAll(authentication, pageable, userEmail, email);
     }
 
     @GetMapping("/{id}")

@@ -37,26 +37,23 @@ public class MenuAccessService {
     }
 
     public MenuAccessContext assertReadAccess(Authentication authentication, UUID locationId) {
-        return assertAccess(authentication, locationId);
+        UUID userId = resolveOptionalUserId(authentication);
+        boolean admin = userId != null && accountRoleService.resolveRoleNames(userId).contains("ROLE_ADMIN");
+        if (locationId != null) {
+            ensureLocationExists(locationId);
+        }
+        return new MenuAccessContext(userId, admin, locationId);
     }
 
     public MenuAccessContext assertWriteAccess(Authentication authentication, UUID locationId) {
-        return assertAccess(authentication, locationId);
-    }
-
-    private MenuAccessContext assertAccess(Authentication authentication, UUID locationId) {
         UserEntity user = resolveUser(authentication);
         UUID userId = user.getId();
         List<String> roleNames = accountRoleService.resolveRoleNames(userId);
         boolean admin = roleNames.contains("ROLE_ADMIN");
 
         if (locationId == null) {
-            if (admin) {
+            if (admin || hasGlobalMenuPermission(userId)) {
                 return new MenuAccessContext(userId, true, null);
-            }
-            if (isStoreRole(roleNames) && user.getLocationId() != null) {
-                ensureLocationExists(user.getLocationId());
-                return new MenuAccessContext(userId, false, user.getLocationId());
             }
             throw unauthorized();
         }
@@ -70,6 +67,15 @@ public class MenuAccessService {
         }
 
         throw unauthorized();
+    }
+
+    private UUID resolveOptionalUserId(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
+            return null;
+        }
+        return userRepository.findByEmail(authentication.getName())
+                .map(UserEntity::getId)
+                .orElse(null);
     }
 
     private UserEntity resolveUser(Authentication authentication) {

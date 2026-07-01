@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,19 +39,19 @@ public class MenuItemOptionController {
     }
 
     @PostMapping
-    public ResponseEntity<MenuItemOptionDto> create(@RequestBody MenuItemOptionDto dto) {
-        MenuItemOptionDto created = service.create(dto);
+    public ResponseEntity<MenuItemOptionDto> create(Authentication authentication, @RequestBody MenuItemOptionDto dto) {
+        MenuItemOptionDto created = service.create(authentication, dto);
         return ResponseEntity.created(URI.create("/api/v1/menu-item-options/" + created.id())).body(created);
     }
 
     @PutMapping("/{id}")
-    public MenuItemOptionDto update(@PathVariable UUID id, @RequestBody MenuItemOptionDto dto) {
-        return service.update(id, dto);
+    public MenuItemOptionDto update(Authentication authentication, @PathVariable UUID id, @RequestBody MenuItemOptionDto dto) {
+        return service.update(authentication, id, dto);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        service.delete(id);
+    public ResponseEntity<Void> delete(Authentication authentication, @PathVariable UUID id) {
+        service.delete(authentication, id);
         return ResponseEntity.noContent().build();
     }
 }

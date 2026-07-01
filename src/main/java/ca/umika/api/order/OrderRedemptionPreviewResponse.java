@@ -17,6 +17,7 @@ public record OrderRedemptionPreviewResponse(
         BigDecimal taxableAmount,
         BigDecimal taxRate,
         BigDecimal taxAmount,
+        BigDecimal tipAmount,
         BigDecimal finalTotal
 ) {
 }

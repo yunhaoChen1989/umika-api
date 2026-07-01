@@ -21,6 +21,7 @@ public class OrderMapper {
                 entity.getTotalDiscount(),
                 entity.getTaxRate(),
                 entity.getTaxAmount(),
+                entity.getTipAmount(),
                 entity.getFinalTotal(),
                 entity.getCustomerNote(),
                 entity.getInternalNote(),
@@ -50,6 +51,7 @@ public class OrderMapper {
         entity.setTotalDiscount(dto.totalDiscount());
         entity.setTaxRate(dto.taxRate());
         entity.setTaxAmount(dto.taxAmount());
+        entity.setTipAmount(dto.tipAmount());
         entity.setFinalTotal(dto.finalTotal());
         entity.setCustomerNote(dto.customerNote());
         entity.setInternalNote(dto.internalNote());

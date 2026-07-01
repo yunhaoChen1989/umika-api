@@ -117,19 +117,23 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public Page<OrderResponse> findAll(Authentication authentication, Pageable pageable, String userEmail) {
+    public Page<OrderResponse> findAll(Authentication authentication, Pageable pageable, String userEmail, String email) {
         UserEntity user = resolveUser(authentication);
+        String searchEmail = normalizeSearchEmail(userEmail, email);
         if (isAdmin(user.getId())) {
-            return findAdminOrders(pageable, userEmail);
+            return findAdminOrders(pageable, searchEmail);
         }
 
         List<UserPermissionEntity> permissions = userPermissionRepository
                 .findByUserIdAndPermissionCodeIgnoreCaseAndIsGrantedTrue(user.getId(), ORDER_MANAGE_PERMISSION);
         if (!permissions.isEmpty()) {
-            return findManagerOrders(user, permissions, pageable, userEmail);
+            return findManagerOrders(user, permissions, pageable, searchEmail);
         }
         if (isStoreRole(user.getId()) && user.getLocationId() != null) {
-            return findStoreRoleOrders(user, pageable, userEmail);
+            return findStoreRoleOrders(user, pageable, searchEmail);
+        }
+        if (searchEmail != null && !user.getEmail().equalsIgnoreCase(searchEmail)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Cannot view another user's order history");
         }
         return repository.findByUserId(user.getId(), pageable).map(this::toResponse);
     }
@@ -138,9 +142,9 @@ public class OrderService {
         if (userEmail == null || userEmail.isBlank()) {
             return repository.findAll(pageable).map(this::toResponse);
         }
-        UserEntity targetUser = userRepository.findByEmail(userEmail.trim())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userEmail));
-        return repository.findByUserId(targetUser.getId(), pageable).map(this::toResponse);
+        return userRepository.findByEmail(userEmail)
+                .map(targetUser -> repository.findByUserId(targetUser.getId(), pageable).map(this::toResponse))
+                .orElseGet(() -> Page.empty(pageable));
     }
 
     private Page<OrderResponse> findManagerOrders(
@@ -153,9 +157,9 @@ public class OrderService {
             if (userEmail == null || userEmail.isBlank()) {
                 return repository.findAll(pageable).map(this::toResponse);
             }
-            UserEntity targetUser = userRepository.findByEmail(userEmail.trim())
-                    .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userEmail));
-            return repository.findByUserId(targetUser.getId(), pageable).map(this::toResponse);
+            return userRepository.findByEmail(userEmail)
+                    .map(targetUser -> repository.findByUserId(targetUser.getId(), pageable).map(this::toResponse))
+                    .orElseGet(() -> Page.empty(pageable));
         }
 
         List<UUID> locationIds = permissions.stream()
@@ -169,9 +173,9 @@ public class OrderService {
         if (userEmail == null || userEmail.isBlank()) {
             return repository.findByLocationIdIn(locationIds, pageable).map(this::toResponse);
         }
-        UserEntity targetUser = userRepository.findByEmail(userEmail.trim())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userEmail));
-        return repository.findByUserIdAndLocationIdIn(targetUser.getId(), locationIds, pageable).map(this::toResponse);
+        return userRepository.findByEmail(userEmail)
+                .map(targetUser -> repository.findByUserIdAndLocationIdIn(targetUser.getId(), locationIds, pageable).map(this::toResponse))
+                .orElseGet(() -> Page.empty(pageable));
     }
 
     private Page<OrderResponse> findStoreRoleOrders(UserEntity storeUser, Pageable pageable, String userEmail) {
@@ -179,9 +183,19 @@ public class OrderService {
         if (userEmail == null || userEmail.isBlank()) {
             return repository.findByLocationIdIn(locationIds, pageable).map(this::toResponse);
         }
-        UserEntity targetUser = userRepository.findByEmail(userEmail.trim())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userEmail));
-        return repository.findByUserIdAndLocationIdIn(targetUser.getId(), locationIds, pageable).map(this::toResponse);
+        return userRepository.findByEmail(userEmail)
+                .map(targetUser -> repository.findByUserIdAndLocationIdIn(targetUser.getId(), locationIds, pageable).map(this::toResponse))
+                .orElseGet(() -> Page.empty(pageable));
+    }
+
+    private String normalizeSearchEmail(String userEmail, String email) {
+        if (userEmail != null && !userEmail.isBlank()) {
+            return userEmail.trim();
+        }
+        if (email != null && !email.isBlank()) {
+            return email.trim();
+        }
+        return null;
     }
 
     @Transactional(readOnly = true)
@@ -197,7 +211,7 @@ public class OrderService {
         CartEntity cart = findCart(request.cartId());
         assertUserCart(user.getId(), cart);
         assertActiveCart(cart);
-        return calculateRedemptionPreview(cart, user.getId(), request.pointsToRedeem());
+        return calculateRedemptionPreview(cart, user.getId(), request.pointsToRedeem(), request.tipAmount());
     }
 
     public OrderResponse checkout(Authentication authentication, OrderCheckoutRequest request) {
@@ -220,7 +234,8 @@ public class OrderService {
         BigDecimal taxableAmount = subtotal.subtract(redemption.amount()).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
         BigDecimal taxRate = settingDecimal(cart.getLocationId(), DEFAULT_TAX_RATE, BigDecimal.ZERO);
         BigDecimal taxAmount = taxableAmount.multiply(taxRate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-        BigDecimal finalTotal = taxableAmount.add(taxAmount).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal tipAmount = normalizeTipAmount(request.tipAmount());
+        BigDecimal finalTotal = taxableAmount.add(taxAmount).add(tipAmount).setScale(2, RoundingMode.HALF_UP);
 
         OrderEntity order = new OrderEntity();
         order.setUserId(user.getId());
@@ -233,6 +248,7 @@ public class OrderService {
         order.setTotalDiscount(redemption.amount());
         order.setTaxRate(taxRate);
         order.setTaxAmount(taxAmount);
+        order.setTipAmount(tipAmount);
         order.setFinalTotal(finalTotal);
         order.setCustomerNote(trimToNull(request.customerNote()));
         order.setTaxExempt(false);
@@ -352,12 +368,13 @@ public class OrderService {
         }
     }
 
-    private OrderRedemptionPreviewResponse calculateRedemptionPreview(CartEntity cart, UUID userId, Integer requestedPoints) {
+    private OrderRedemptionPreviewResponse calculateRedemptionPreview(CartEntity cart, UUID userId, Integer requestedPoints, BigDecimal requestedTipAmount) {
         RedemptionCalculation calculation = calculateRedemption(cart, userId, requestedPoints);
         BigDecimal subtotal = nullToZero(cart.getSubtotal()).setScale(2, RoundingMode.HALF_UP);
         BigDecimal taxableAmount = subtotal.subtract(calculation.amount()).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
         BigDecimal taxRate = settingDecimal(cart.getLocationId(), DEFAULT_TAX_RATE, BigDecimal.ZERO);
         BigDecimal taxAmount = taxableAmount.multiply(taxRate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        BigDecimal tipAmount = normalizeTipAmount(requestedTipAmount);
         return new OrderRedemptionPreviewResponse(
                 cart.getId(),
                 userId,
@@ -372,7 +389,8 @@ public class OrderService {
                 taxableAmount,
                 taxRate,
                 taxAmount,
-                taxableAmount.add(taxAmount).setScale(2, RoundingMode.HALF_UP)
+                tipAmount,
+                taxableAmount.add(taxAmount).add(tipAmount).setScale(2, RoundingMode.HALF_UP)
         );
     }
 
@@ -447,6 +465,7 @@ public class OrderService {
                 order.getTotalDiscount(),
                 order.getTaxRate(),
                 order.getTaxAmount(),
+                nullToZero(order.getTipAmount()),
                 order.getFinalTotal(),
                 order.getCustomerNote(),
                 order.getInternalNote(),
@@ -608,6 +627,14 @@ public class OrderService {
 
     private BigDecimal nullToZero(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private BigDecimal normalizeTipAmount(BigDecimal tipAmount) {
+        BigDecimal normalized = nullToZero(tipAmount).setScale(2, RoundingMode.HALF_UP);
+        if (normalized.compareTo(BigDecimal.ZERO) < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "tipAmount cannot be negative");
+        }
+        return normalized;
     }
 
     private record RedemptionCalculation(
