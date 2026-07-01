@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import ca.umika.api.common.persistence.BaseEntity;
 import java.math.BigDecimal;
 import java.util.UUID;
+import org.hibernate.annotations.ColumnTransformer;
 
 @Entity
 @Table(name = "cart_items")
@@ -32,7 +33,8 @@ public class CartItemEntity extends BaseEntity {
     @Column(name = "image_url")
     private String imageUrl;
 
-    @Column(name = "options", columnDefinition = "JSONB")
+    @ColumnTransformer(write = "?::jsonb")
+    @Column(name = "options", columnDefinition = "jsonb")
     private String options; // store JSON as string
 
     // getters and setters

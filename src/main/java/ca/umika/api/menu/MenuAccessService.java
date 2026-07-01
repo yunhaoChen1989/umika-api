@@ -4,7 +4,9 @@ import ca.umika.api.admin.UserPermissionRepository;
 import ca.umika.api.auth.AccountRoleService;
 import ca.umika.api.common.web.ResourceNotFoundException;
 import ca.umika.api.store.LocationRepository;
+import ca.umika.api.user.UserEntity;
 import ca.umika.api.user.UserRepository;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -14,7 +16,8 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class MenuAccessService {
 
-    public static final String MANAGE_PERMISSION_CODE = "LOCATION_SETTING_MANAGE";
+    public static final String MANAGE_PERMISSION_CODE = "MENU_MANAGE";
+    private static final String LEGACY_MANAGE_PERMISSION_CODE = "LOCATION_SETTING_MANAGE";
 
     private final UserRepository userRepository;
     private final AccountRoleService accountRoleService;
@@ -42,44 +45,66 @@ public class MenuAccessService {
     }
 
     private MenuAccessContext assertAccess(Authentication authentication, UUID locationId) {
-        UUID userId = resolveUserId(authentication);
-        boolean admin = accountRoleService.resolveRoleNames(userId).contains("ROLE_ADMIN");
+        UserEntity user = resolveUser(authentication);
+        UUID userId = user.getId();
+        List<String> roleNames = accountRoleService.resolveRoleNames(userId);
+        boolean admin = roleNames.contains("ROLE_ADMIN");
 
         if (locationId == null) {
             if (admin) {
                 return new MenuAccessContext(userId, true, null);
             }
+            if (isStoreRole(roleNames) && user.getLocationId() != null) {
+                ensureLocationExists(user.getLocationId());
+                return new MenuAccessContext(userId, false, user.getLocationId());
+            }
             throw unauthorized();
         }
 
         ensureLocationExists(locationId);
-        if (admin || hasGlobalMenuPermission(userId) || hasLocationMenuPermission(userId, locationId)) {
+        if (admin
+                || hasGlobalMenuPermission(userId)
+                || hasLocationMenuPermission(userId, locationId)
+                || (isStoreRole(roleNames) && locationId.equals(user.getLocationId()))) {
             return new MenuAccessContext(userId, admin, locationId);
         }
 
         throw unauthorized();
     }
 
-    private UUID resolveUserId(Authentication authentication) {
+    private UserEntity resolveUser(Authentication authentication) {
         if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
             throw unauthorized();
         }
 
         return userRepository.findByEmail(authentication.getName())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()))
-                .getId();
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()));
     }
 
     private boolean hasGlobalMenuPermission(UUID userId) {
-        return userPermissionRepository.existsByUserIdAndPermissionCodeIgnoreCaseAndIsGrantedTrueAndLocationIdIsNull(
-                userId, MANAGE_PERMISSION_CODE
-        );
+        return hasGlobalPermission(userId, MANAGE_PERMISSION_CODE)
+                || hasGlobalPermission(userId, LEGACY_MANAGE_PERMISSION_CODE);
     }
 
     private boolean hasLocationMenuPermission(UUID userId, UUID locationId) {
-        return userPermissionRepository.existsByUserIdAndPermissionCodeIgnoreCaseAndIsGrantedTrueAndLocationId(
-                userId, MANAGE_PERMISSION_CODE, locationId
+        return hasLocationPermission(userId, MANAGE_PERMISSION_CODE, locationId)
+                || hasLocationPermission(userId, LEGACY_MANAGE_PERMISSION_CODE, locationId);
+    }
+
+    private boolean hasGlobalPermission(UUID userId, String permissionCode) {
+        return userPermissionRepository.existsByUserIdAndPermissionCodeIgnoreCaseAndIsGrantedTrueAndLocationIdIsNull(
+                userId, permissionCode
         );
+    }
+
+    private boolean hasLocationPermission(UUID userId, String permissionCode, UUID locationId) {
+        return userPermissionRepository.existsByUserIdAndPermissionCodeIgnoreCaseAndIsGrantedTrueAndLocationId(
+                userId, permissionCode, locationId
+        );
+    }
+
+    private boolean isStoreRole(List<String> roleNames) {
+        return roleNames.contains("ROLE_MANAGER") || roleNames.contains("ROLE_STAFF");
     }
 
     private void ensureLocationExists(UUID locationId) {

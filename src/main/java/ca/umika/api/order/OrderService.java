@@ -117,26 +117,71 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public Page<OrderResponse> findAll(Authentication authentication, Pageable pageable) {
+    public Page<OrderResponse> findAll(Authentication authentication, Pageable pageable, String userEmail) {
         UserEntity user = resolveUser(authentication);
         if (isAdmin(user.getId())) {
-            return repository.findAll(pageable).map(this::toResponse);
+            return findAdminOrders(pageable, userEmail);
         }
 
         List<UserPermissionEntity> permissions = userPermissionRepository
                 .findByUserIdAndPermissionCodeIgnoreCaseAndIsGrantedTrue(user.getId(), ORDER_MANAGE_PERMISSION);
-        if (permissions.stream().anyMatch(permission -> permission.getLocationId() == null)) {
+        if (!permissions.isEmpty()) {
+            return findManagerOrders(user, permissions, pageable, userEmail);
+        }
+        if (isStoreRole(user.getId()) && user.getLocationId() != null) {
+            return findStoreRoleOrders(user, pageable, userEmail);
+        }
+        return repository.findByUserId(user.getId(), pageable).map(this::toResponse);
+    }
+
+    private Page<OrderResponse> findAdminOrders(Pageable pageable, String userEmail) {
+        if (userEmail == null || userEmail.isBlank()) {
             return repository.findAll(pageable).map(this::toResponse);
         }
+        UserEntity targetUser = userRepository.findByEmail(userEmail.trim())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userEmail));
+        return repository.findByUserId(targetUser.getId(), pageable).map(this::toResponse);
+    }
+
+    private Page<OrderResponse> findManagerOrders(
+            UserEntity manager,
+            List<UserPermissionEntity> permissions,
+            Pageable pageable,
+            String userEmail
+    ) {
+        if (permissions.stream().anyMatch(permission -> permission.getLocationId() == null)) {
+            if (userEmail == null || userEmail.isBlank()) {
+                return repository.findAll(pageable).map(this::toResponse);
+            }
+            UserEntity targetUser = userRepository.findByEmail(userEmail.trim())
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userEmail));
+            return repository.findByUserId(targetUser.getId(), pageable).map(this::toResponse);
+        }
+
         List<UUID> locationIds = permissions.stream()
                 .map(UserPermissionEntity::getLocationId)
                 .filter(locationId -> locationId != null)
                 .distinct()
                 .toList();
-        if (!locationIds.isEmpty()) {
+        if (locationIds.isEmpty()) {
+            return repository.findByUserId(manager.getId(), pageable).map(this::toResponse);
+        }
+        if (userEmail == null || userEmail.isBlank()) {
             return repository.findByLocationIdIn(locationIds, pageable).map(this::toResponse);
         }
-        return repository.findByUserId(user.getId(), pageable).map(this::toResponse);
+        UserEntity targetUser = userRepository.findByEmail(userEmail.trim())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userEmail));
+        return repository.findByUserIdAndLocationIdIn(targetUser.getId(), locationIds, pageable).map(this::toResponse);
+    }
+
+    private Page<OrderResponse> findStoreRoleOrders(UserEntity storeUser, Pageable pageable, String userEmail) {
+        List<UUID> locationIds = List.of(storeUser.getLocationId());
+        if (userEmail == null || userEmail.isBlank()) {
+            return repository.findByLocationIdIn(locationIds, pageable).map(this::toResponse);
+        }
+        UserEntity targetUser = userRepository.findByEmail(userEmail.trim())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userEmail));
+        return repository.findByUserIdAndLocationIdIn(targetUser.getId(), locationIds, pageable).map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
@@ -434,7 +479,8 @@ public class OrderService {
         boolean location = locationId != null && userPermissionRepository.existsByUserIdAndPermissionCodeIgnoreCaseAndIsGrantedTrueAndLocationId(
                 user.getId(), ORDER_MANAGE_PERMISSION, locationId
         );
-        if (!global && !location) {
+        boolean ownStoreRole = locationId != null && isStoreRole(user.getId()) && locationId.equals(user.getLocationId());
+        if (!global && !location && !ownStoreRole) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing order permission");
         }
     }
@@ -449,6 +495,11 @@ public class OrderService {
 
     private boolean isAdmin(UUID userId) {
         return accountRoleService.resolveRoleNames(userId).contains("ROLE_ADMIN");
+    }
+
+    private boolean isStoreRole(UUID userId) {
+        List<String> roleNames = accountRoleService.resolveRoleNames(userId);
+        return roleNames.contains("ROLE_MANAGER") || roleNames.contains("ROLE_STAFF");
     }
 
     private CartEntity findCart(UUID cartId) {

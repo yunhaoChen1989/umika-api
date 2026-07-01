@@ -14,6 +14,7 @@ import ca.umika.api.menu.MenuItemRepository;
 import ca.umika.api.store.LocationRepository;
 import ca.umika.api.user.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -98,7 +99,7 @@ public class CartService {
         ResolvedCartItem resolved = resolveMenuItem(cart.getLocationId(), request.menuItemId(), request.optionIds(), request.note());
 
         for (CartItemEntity existing : cartItemRepository.findByCart_Id(cart.getId())) {
-            if (existing.getMenuItemId().equals(request.menuItemId()) && existing.getOptions().equals(resolved.optionsJson())) {
+            if (existing.getMenuItemId().equals(request.menuItemId()) && sameOptions(existing.getOptions(), resolved.optionsJson())) {
                 existing.setQuantity(existing.getQuantity() + quantity);
                 cartItemRepository.save(existing);
                 recalculateSubtotal(cart);
@@ -346,9 +347,19 @@ public class CartService {
             payload.put("note", note.trim());
         }
         try {
-            return objectMapper.writeValueAsString(payload);
+        return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to write cart options", e);
+        }
+    }
+
+    private boolean sameOptions(String existingOptions, String requestedOptions) {
+        try {
+            JsonNode existing = objectMapper.readTree(existingOptions == null || existingOptions.isBlank() ? "{}" : existingOptions);
+            JsonNode requested = objectMapper.readTree(requestedOptions == null || requestedOptions.isBlank() ? "{}" : requestedOptions);
+            return existing.equals(requested);
+        } catch (JsonProcessingException e) {
+            return String.valueOf(existingOptions).equals(String.valueOf(requestedOptions));
         }
     }
 
