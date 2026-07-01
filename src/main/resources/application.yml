@@ -43,6 +43,11 @@ jwt:
   secret: "myverysecuresecretkeymyverysecuresecretkey"
   expirationMs: 3600000
 
+google:
+  oauth:
+    client-id: ${GOOGLE_OAUTH_CLIENT_ID:395014484643-u08rnbc9um0khs2o49md9chm6mjq6up9.apps.googleusercontent.com}
+    callback-uri: ${GOOGLE_OAUTH_CALLBACK_URI:https://Umikasushi.ca/api/v1/auth/google}
+
 app:
   public-base-url: ${APP_PUBLIC_BASE_URL:https://umikasushi.ca}
   upload:

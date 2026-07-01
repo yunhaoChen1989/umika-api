@@ -35,7 +35,6 @@ public class CurrentUserRewardsService {
     private static final String POINT_VALUE_CENTS = "POINT_VALUE_CENTS";
     private static final String MAX_REDEMPTION_PERCENT = "MAX_REDEMPTION_PERCENT";
     private static final String BIRTHDAY_BONUS_POINTS = "BIRTHDAY_BONUS_POINTS";
-    private static final String REFERRAL_SIGNUP_POINTS = "REFERRAL_SIGNUP_POINTS";
     private static final String REFERRAL_FIRST_ORDER_POINTS = "REFERRAL_FIRST_ORDER_POINTS";
     private static final String MIN_REFERRAL_ORDER_AMOUNT = "MIN_REFERRAL_ORDER_AMOUNT";
     private static final String MIN_REDEEM_POINTS = "MIN_REDEEM_POINTS";
@@ -74,6 +73,7 @@ public class CurrentUserRewardsService {
         int redeemed = rewardTransactionRepository.sumRedeemedPointsByUserId(user.getId());
         BigDecimal pointValueCents = settingDecimal(resolvedLocationId, POINT_VALUE_CENTS, BigDecimal.valueOf(5));
         int minimumRedeemPoints = settingInteger(resolvedLocationId, MIN_REDEEM_POINTS, 100);
+        BigDecimal minReferralOrderAmount = settingDecimal(resolvedLocationId, MIN_REFERRAL_ORDER_AMOUNT, BigDecimal.valueOf(25));
 
         return new CurrentUserRewardsDto(
                 balance,
@@ -85,9 +85,10 @@ public class CurrentUserRewardsService {
                 minimumRedeemPoints,
                 pointsToDollars(minimumRedeemPoints, pointValueCents),
                 settingInteger(resolvedLocationId, BIRTHDAY_BONUS_POINTS, 100),
-                settingInteger(resolvedLocationId, REFERRAL_SIGNUP_POINTS, 50),
+                0,
                 settingInteger(resolvedLocationId, REFERRAL_FIRST_ORDER_POINTS, 100),
-                settingDecimal(resolvedLocationId, MIN_REFERRAL_ORDER_AMOUNT, BigDecimal.valueOf(25)),
+                minReferralOrderAmount,
+                minReferralOrderAmount,
                 user.getReferralCode(),
                 buildReferralInviteUrl(user.getReferralCode())
         );

@@ -30,6 +30,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -353,8 +354,19 @@ public class OrderService {
         if (referral == null || "REWARDED".equalsIgnoreCase(referral.getStatus()) || "INVALID".equalsIgnoreCase(referral.getStatus())) {
             return;
         }
+        long paidOrderCount = repository.countByUserIdAndStatusIn(
+                order.getUserId(),
+                List.of("PAID", "PREPARING", "READY", "COMPLETED")
+        );
+        if (paidOrderCount > 1) {
+            referral.setStatus("INVALID");
+            referralRepository.save(referral);
+            return;
+        }
         BigDecimal minimum = settingDecimal(order.getLocationId(), MIN_REFERRAL_ORDER_AMOUNT, BigDecimal.valueOf(25));
         if (order.getSubtotal().compareTo(minimum) < 0) {
+            referral.setStatus("INVALID");
+            referralRepository.save(referral);
             return;
         }
         int points = settingDecimal(order.getLocationId(), REFERRAL_FIRST_ORDER_POINTS, BigDecimal.valueOf(100))
@@ -417,9 +429,17 @@ public class OrderService {
     }
 
     private BigDecimal settingDecimal(UUID locationId, String key, BigDecimal defaultValue) {
-        String value = locationSettingRepository.findByLocationIdAndSettingKeyIgnoreCase(locationId, key)
+        String group = settingGroup(key);
+        Optional<String> locationValue = locationId == null ? Optional.empty() : locationSettingRepository
+                .findByLocationIdAndSettingGroupIgnoreCaseAndSettingKeyIgnoreCase(locationId, group, key)
                 .map(setting -> setting.getSettingValue())
-                .or(() -> systemSettingRepository.findBySettingKey(key).map(setting -> setting.getSettingValue()))
+                .or(() -> locationSettingRepository.findByLocationIdAndSettingKeyIgnoreCase(locationId, key)
+                        .map(setting -> setting.getSettingValue()));
+        String value = locationValue
+                .or(() -> systemSettingRepository.findBySettingGroupAndSettingKeyIgnoreCase(group, key)
+                        .map(setting -> setting.getSettingValue()))
+                .or(() -> systemSettingRepository.findBySettingKey(key)
+                        .map(setting -> setting.getSettingValue()))
                 .orElse(null);
         if (value == null || value.isBlank()) {
             return defaultValue;
@@ -429,6 +449,16 @@ public class OrderService {
         } catch (NumberFormatException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid setting value for " + key);
         }
+    }
+
+    private String settingGroup(String key) {
+        if (REFERRAL_FIRST_ORDER_POINTS.equals(key) || MIN_REFERRAL_ORDER_AMOUNT.equals(key)) {
+            return "REFERRAL";
+        }
+        if (DEFAULT_TAX_RATE.equals(key)) {
+            return "ORDER";
+        }
+        return "REWARD";
     }
 
     private OrderResponse toResponse(OrderEntity order) {

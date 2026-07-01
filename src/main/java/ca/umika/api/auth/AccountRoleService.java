@@ -48,6 +48,17 @@ public class AccountRoleService {
                 .collect(Collectors.toList());
     }
 
+    public void ensureDefaultCustomerRole(UUID userId) {
+        if (!userRoleRepository.findByIdUserId(userId).isEmpty()) {
+            return;
+        }
+        RoleEntity role = roleRepository.findByName("ROLE_CUSTOMER")
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Default role not found: ROLE_CUSTOMER"));
+        UserRoleEntity userRole = new UserRoleEntity();
+        userRole.setId(new UserRoleId(userId, role.getId()));
+        userRoleRepository.save(userRole);
+    }
+
     public void assertAdmin(UUID userId) {
         if (!resolveRoleNames(userId).contains("ROLE_ADMIN")) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin role required");

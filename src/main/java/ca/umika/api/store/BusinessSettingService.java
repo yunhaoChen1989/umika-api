@@ -35,7 +35,6 @@ public class BusinessSettingService {
             definition("REWARD", "MAX_REDEMPTION_PERCENT", "Max redemption percent", "Maximum order subtotal percentage payable with points.", "decimal", "percent", "50"),
             definition("REWARD", "MIN_REDEEM_POINTS", "Minimum redeem points", "Smallest point block customers can redeem.", "integer", "points", "100"),
             definition("REWARD", "BIRTHDAY_BONUS_POINTS", "Birthday bonus points", "Points granted for birthday reward.", "integer", "points", "100"),
-            definition("REFERRAL", "REFERRAL_SIGNUP_POINTS", "Referral signup points", "Points awarded when a referred user registers.", "integer", "points", "50"),
             definition("REFERRAL", "REFERRAL_FIRST_ORDER_POINTS", "Referral first-order points", "Points awarded when referred user places first qualifying order.", "integer", "points", "100"),
             definition("REFERRAL", "MIN_REFERRAL_ORDER_AMOUNT", "Referral minimum order", "Minimum order subtotal to trigger first-order referral reward.", "decimal", "currency", "25")
     );

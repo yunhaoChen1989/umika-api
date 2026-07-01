@@ -60,6 +60,9 @@ public class UserService {
         if (entity.getIsActive() == null) {
             entity.setIsActive(Boolean.TRUE);
         }
+        if (entity.getAuthProvider() == null || entity.getAuthProvider().isBlank()) {
+            entity.setAuthProvider("LOCAL");
+        }
         if (dto.password() == null || dto.password().isBlank()) {
             throw new IllegalArgumentException("Password is required");
         }

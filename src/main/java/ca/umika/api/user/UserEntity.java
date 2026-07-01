@@ -19,8 +19,14 @@ public class UserEntity extends BaseEntity {
     @Column(name = "phone")
     private String phone;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash")
     private String passwordHash;
+
+    @Column(name = "google_subject")
+    private String googleSubject;
+
+    @Column(name = "auth_provider")
+    private String authProvider;
 
     @Column(name = "email_verified", nullable = false)
     private Boolean emailVerified = Boolean.FALSE;
@@ -78,6 +84,22 @@ public UUID getId() {
 
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    public String getGoogleSubject() {
+        return googleSubject;
+    }
+
+    public void setGoogleSubject(String googleSubject) {
+        this.googleSubject = googleSubject;
+    }
+
+    public String getAuthProvider() {
+        return authProvider;
+    }
+
+    public void setAuthProvider(String authProvider) {
+        this.authProvider = authProvider;
     }
 
     public Boolean getEmailVerified() {

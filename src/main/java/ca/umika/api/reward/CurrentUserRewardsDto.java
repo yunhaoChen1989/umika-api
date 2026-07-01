@@ -15,6 +15,7 @@ public record CurrentUserRewardsDto(
         Integer referralRegisterPoints,
         Integer referralFirstOrderPoints,
         BigDecimal referralFirstOrderMinimum,
+        BigDecimal minReferralOrderAmount,
         String referralCode,
         String referralInviteUrl
 ) {
