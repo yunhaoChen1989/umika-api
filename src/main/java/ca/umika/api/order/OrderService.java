@@ -328,6 +328,22 @@ public class OrderService {
         return toResponse(order);
     }
 
+    public OrderResponse markPaidFromPayment(UUID id, UUID changedBy, String note) {
+        OrderEntity order = findOrder(id);
+        if (STATUS_PAID.equalsIgnoreCase(order.getStatus())) {
+            return toResponse(order);
+        }
+
+        String oldStatus = order.getStatus();
+        order.setStatus(STATUS_PAID);
+        order = repository.save(order);
+        createStatusHistory(order.getId(), oldStatus, STATUS_PAID, changedBy, trimToNull(note));
+        awardPaidOrderPoints(order);
+        awardReferralFirstOrderIfEligible(order);
+        refreshWallet(order.getUserId());
+        return toResponse(order);
+    }
+
     public void delete(Authentication authentication, UUID id) {
         OrderEntity order = findOrder(id);
         UserEntity user = resolveUser(authentication);
