@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @RestController
 @RequestMapping("/api/v1/menu-item-images")
@@ -56,8 +55,7 @@ public class MenuItemImageController {
             @RequestParam(required = false) Boolean isPrimary,
             @RequestParam(required = false) Integer sortOrder
     ) {
-        String publicBaseUrl = ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString();
-        MenuItemImageDto created = service.upload(authentication, menuItemId, file, isPrimary, sortOrder, publicBaseUrl);
+        MenuItemImageDto created = service.upload(authentication, menuItemId, file, isPrimary, sortOrder);
         return ResponseEntity.created(URI.create("/api/v1/menu-item-images/" + created.id())).body(created);
     }
 

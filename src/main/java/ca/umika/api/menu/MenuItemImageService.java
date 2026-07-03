@@ -54,10 +54,10 @@ public class MenuItemImageService {
         return mapper.toDto(repository.save(entity));
     }
 
-    public MenuItemImageDto upload(Authentication authentication, UUID menuItemId, MultipartFile file, Boolean isPrimary, Integer sortOrder, String publicBaseUrl) {
+    public MenuItemImageDto upload(Authentication authentication, UUID menuItemId, MultipartFile file, Boolean isPrimary, Integer sortOrder) {
         menuAccessService.assertWriteAccess(authentication, resolveMenuItemLocationId(menuItemId));
         String filename = storageService.store(file);
-        String publicUrl = buildPublicUrl(publicBaseUrl, filename);
+        String publicUrl = buildPublicPath(filename);
 
         MenuItemImageEntity entity = new MenuItemImageEntity();
         entity.setMenuItemId(menuItemId);
@@ -96,11 +96,7 @@ public class MenuItemImageService {
         return menuItemRepository.findLocationIdByMenuItemId(menuItemId).orElse(null);
     }
 
-    private String buildPublicUrl(String publicBaseUrl, String filename) {
-        String base = publicBaseUrl == null ? "" : publicBaseUrl.trim();
-        if (base.endsWith("/")) {
-            base = base.substring(0, base.length() - 1);
-        }
-        return base + "/uploads/menu-item-images/" + filename;
+    private String buildPublicPath(String filename) {
+        return "/uploads/menu-item-images/" + filename;
     }
 }

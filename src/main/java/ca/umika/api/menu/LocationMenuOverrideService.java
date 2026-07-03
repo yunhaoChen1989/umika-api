@@ -101,14 +101,13 @@ public class LocationMenuOverrideService {
             Authentication authentication,
             UUID locationId,
             UUID menuItemId,
-            MultipartFile file,
-            String publicBaseUrl
+            MultipartFile file
     ) {
         menuAccessService.assertWriteAccess(authentication, locationId);
         validateLocation(locationId);
         validateTarget(ITEM, menuItemId);
         String filename = storageService.store(file);
-        String imageUrl = buildPublicUrl(publicBaseUrl, filename);
+        String imageUrl = buildPublicPath(filename);
 
         LocationMenuOverrideEntity entity = repository
                 .findByLocationIdAndTargetTypeAndTargetId(locationId, ITEM, menuItemId)
@@ -170,11 +169,7 @@ public class LocationMenuOverrideService {
         }
     }
 
-    private String buildPublicUrl(String publicBaseUrl, String filename) {
-        String base = publicBaseUrl == null ? "" : publicBaseUrl.trim();
-        if (base.endsWith("/")) {
-            base = base.substring(0, base.length() - 1);
-        }
-        return base + "/uploads/menu-item-images/" + filename;
+    private String buildPublicPath(String filename) {
+        return "/uploads/menu-item-images/" + filename;
     }
 }

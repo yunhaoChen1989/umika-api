@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @RestController
 @RequestMapping("/api/v1/location-menu-overrides")
@@ -64,8 +63,7 @@ public class LocationMenuOverrideController {
             @RequestParam UUID menuItemId,
             @RequestPart("file") MultipartFile file
     ) {
-        String publicBaseUrl = ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString();
-        return service.uploadItemOverrideImage(authentication, locationId, menuItemId, file, publicBaseUrl);
+        return service.uploadItemOverrideImage(authentication, locationId, menuItemId, file);
     }
 
     @PutMapping("/{id}")
