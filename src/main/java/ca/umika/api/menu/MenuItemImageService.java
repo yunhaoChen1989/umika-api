@@ -90,9 +90,10 @@ public class MenuItemImageService {
         if (menuItemId == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "menuItemId is required");
         }
-        return menuItemRepository.findById(menuItemId)
-                .map(MenuItemEntity::getLocationId)
-                .orElseThrow(() -> new ResourceNotFoundException("MenuItem not found: " + menuItemId));
+        if (!menuItemRepository.existsMenuItemRowById(menuItemId)) {
+            throw new ResourceNotFoundException("MenuItem not found: " + menuItemId);
+        }
+        return menuItemRepository.findLocationIdByMenuItemId(menuItemId).orElse(null);
     }
 
     private String buildPublicUrl(String publicBaseUrl, String filename) {
