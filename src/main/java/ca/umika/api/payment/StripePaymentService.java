@@ -20,6 +20,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,8 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 @Transactional
 public class StripePaymentService {
+
+    private static final Logger log = LoggerFactory.getLogger(StripePaymentService.class);
 
     private static final String PROVIDER = "STRIPE";
     private static final String STATUS_PENDING = "PENDING";
@@ -75,9 +79,13 @@ public class StripePaymentService {
                 .findFirstByOrderIdAndProviderOrderByCreatedAtDesc(order.getId(), PROVIDER)
                 .orElse(null);
         if (existing != null && existing.getProviderIntentId() != null && !STATUS_FAILED.equalsIgnoreCase(existing.getStatus())) {
+            log.info("reusing stripe payment intent orderId={} orderNumber={} paymentIntentId={} transactionStatus={}",
+                    order.getId(), order.getOrderNumber(), existing.getProviderIntentId(), existing.getStatus());
             PaymentIntent paymentIntent = retrievePaymentIntent(existing.getProviderIntentId());
             updateTransactionFromIntent(existing, paymentIntent, null);
             if ("succeeded".equalsIgnoreCase(paymentIntent.getStatus())) {
+                log.info("stripe payment intent already succeeded orderId={} orderNumber={} paymentIntentId={}",
+                        order.getId(), order.getOrderNumber(), paymentIntent.getId());
                 orderService.markPaidFromPayment(order.getId(), user.getId(), "Stripe payment already succeeded");
                 return toIntentResponse(existing, paymentIntent);
             }
@@ -96,6 +104,8 @@ public class StripePaymentService {
                 : "order-" + order.getId() + "-payment-intent-" + attempt.getAttemptNumber();
 
         try {
+            log.info("creating stripe payment intent orderId={} orderNumber={} amount={} currency={} attemptNumber={}",
+                    order.getId(), order.getOrderNumber(), order.getFinalTotal(), properties.resolvedCurrency(), attempt.getAttemptNumber());
             PaymentIntent paymentIntent = PaymentIntent.create(
                     PaymentIntentCreateParams.builder()
                             .setAmount(toMinorUnits(order.getFinalTotal()))
@@ -125,6 +135,8 @@ public class StripePaymentService {
             transaction.setAmount(order.getFinalTotal());
             transaction.setCurrency(properties.resolvedCurrency().toUpperCase());
             transactionRepository.save(transaction);
+            log.info("stripe payment intent created orderId={} orderNumber={} paymentIntentId={} stripeStatus={} transactionStatus={}",
+                    order.getId(), order.getOrderNumber(), paymentIntent.getId(), paymentIntent.getStatus(), transaction.getStatus());
 
             attempt.setStatus("SUCCESS");
             attempt.setResponsePayload(Map.of(
@@ -140,6 +152,8 @@ public class StripePaymentService {
             attempt.setStatus("FAILED");
             attempt.setErrorMessage(exception.getMessage());
             attemptRepository.save(attempt);
+            log.warn("stripe payment intent creation failed orderId={} orderNumber={} attemptNumber={} message={}",
+                    order.getId(), order.getOrderNumber(), attempt.getAttemptNumber(), exception.getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Unable to create Stripe payment intent: " + exception.getMessage());
         }
     }
@@ -153,6 +167,8 @@ public class StripePaymentService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Payment access denied");
         }
 
+        log.info("confirming stripe payment orderId={} transactionId={} paymentIntentId={}",
+                transaction.getOrderId(), transaction.getId(), transaction.getProviderIntentId());
         PaymentIntent paymentIntent = retrievePaymentIntent(transaction.getProviderIntentId());
         return applyPaymentIntent(paymentIntent, user.getId());
     }
@@ -171,6 +187,7 @@ public class StripePaymentService {
             log.setPayload(parsePayload(payload));
             log.setProcessed(false);
             webhookLogRepository.save(log);
+            StripePaymentService.log.info("stripe webhook received eventType={} eventId={}", event.getType(), event.getId());
 
             StripeObject object = event.getDataObjectDeserializer().getObject().orElse(null);
             if (object instanceof PaymentIntent paymentIntent) {
@@ -194,12 +211,16 @@ public class StripePaymentService {
         PaymentTransactionEntity transaction = transactionRepository.findFirstByProviderIntentIdOrderByCreatedAtDesc(paymentIntent.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Payment transaction not found for Stripe intent: " + paymentIntent.getId()));
         updateTransactionFromIntent(transaction, paymentIntent, null);
+        log.info("stripe payment intent applied orderId={} transactionId={} paymentIntentId={} stripeStatus={} transactionStatus={}",
+                transaction.getOrderId(), transaction.getId(), paymentIntent.getId(), paymentIntent.getStatus(), transaction.getStatus());
 
         String orderStatus = null;
         if ("succeeded".equalsIgnoreCase(paymentIntent.getStatus())) {
             orderStatus = orderService
                     .markPaidFromPayment(transaction.getOrderId(), changedBy == null ? transaction.getUserId() : changedBy, "Stripe payment succeeded")
                     .status();
+            log.info("order marked paid from stripe orderId={} transactionId={} paymentIntentId={} orderStatus={}",
+                    transaction.getOrderId(), transaction.getId(), paymentIntent.getId(), orderStatus);
         } else {
             orderStatus = orderRepository.findById(transaction.getOrderId())
                     .map(OrderEntity::getStatus)

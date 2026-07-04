@@ -33,6 +33,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -44,6 +46,8 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 @Transactional
 public class OrderService {
+
+    private static final Logger log = LoggerFactory.getLogger(OrderService.class);
 
     private static final String ACTIVE_CART = "ACTIVE";
     private static final String CHECKED_OUT_CART = "CHECKED_OUT";
@@ -331,6 +335,7 @@ public class OrderService {
     public OrderResponse markPaidFromPayment(UUID id, UUID changedBy, String note) {
         OrderEntity order = findOrder(id);
         if (STATUS_PAID.equalsIgnoreCase(order.getStatus())) {
+            log.info("order already paid orderId={} orderNumber={} changedBy={}", order.getId(), order.getOrderNumber(), changedBy);
             return toResponse(order);
         }
 
@@ -338,6 +343,8 @@ public class OrderService {
         order.setStatus(STATUS_PAID);
         order = repository.save(order);
         createStatusHistory(order.getId(), oldStatus, STATUS_PAID, changedBy, trimToNull(note));
+        log.info("order status changed from payment orderId={} orderNumber={} oldStatus={} newStatus={} changedBy={}",
+                order.getId(), order.getOrderNumber(), oldStatus, STATUS_PAID, changedBy);
         awardPaidOrderPoints(order);
         awardReferralFirstOrderIfEligible(order);
         refreshWallet(order.getUserId());
@@ -362,6 +369,8 @@ public class OrderService {
                 .intValue();
         if (points > 0) {
             createRewardTransaction(order.getUserId(), order.getId(), "ORDER_EARN", points, "ORDER", "Earned points from order " + order.getOrderNumber());
+            log.info("order reward points awarded orderId={} orderNumber={} userId={} points={}",
+                    order.getId(), order.getOrderNumber(), order.getUserId(), points);
         }
     }
 
@@ -377,12 +386,16 @@ public class OrderService {
         if (paidOrderCount > 1) {
             referral.setStatus("INVALID");
             referralRepository.save(referral);
+            log.info("referral marked invalid because paid order is not first orderId={} referredUserId={} referralId={}",
+                    order.getId(), order.getUserId(), referral.getId());
             return;
         }
         BigDecimal minimum = settingDecimal(order.getLocationId(), MIN_REFERRAL_ORDER_AMOUNT, BigDecimal.valueOf(25));
         if (order.getSubtotal().compareTo(minimum) < 0) {
             referral.setStatus("INVALID");
             referralRepository.save(referral);
+            log.info("referral marked invalid because order below minimum orderId={} referredUserId={} referralId={} subtotal={} minimum={}",
+                    order.getId(), order.getUserId(), referral.getId(), order.getSubtotal(), minimum);
             return;
         }
         int points = settingDecimal(order.getLocationId(), REFERRAL_FIRST_ORDER_POINTS, BigDecimal.valueOf(100))
@@ -393,6 +406,8 @@ public class OrderService {
             referral.setStatus("REWARDED");
             referralRepository.save(referral);
             refreshWallet(referral.getReferrerId());
+            log.info("referral first order points awarded orderId={} referralId={} referrerId={} referredUserId={} points={}",
+                    order.getId(), referral.getId(), referral.getReferrerId(), order.getUserId(), points);
         }
     }
 

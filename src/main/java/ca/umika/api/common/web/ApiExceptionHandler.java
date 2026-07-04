@@ -14,9 +14,13 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     @ExceptionHandler(ResourceNotFoundException.class)
     ResponseEntity<ApiResult<Void>> handleNotFound(ResourceNotFoundException exception, HttpServletRequest request) {
@@ -59,6 +63,13 @@ public class ApiExceptionHandler {
         HttpStatusCode statusCode = exception.getStatusCode();
         HttpStatus status = HttpStatus.resolve(statusCode.value());
         String error = status == null ? "Error" : status.getReasonPhrase();
+        if (statusCode.is5xxServerError()) {
+            log.error("response status exception path={} status={} message={}",
+                    request.getRequestURI(), statusCode.value(), exception.getReason(), exception);
+        } else if (statusCode.is4xxClientError()) {
+            log.warn("response status exception path={} status={} message={}",
+                    request.getRequestURI(), statusCode.value(), exception.getReason());
+        }
         ApiErrorResponse apiError = new ApiErrorResponse(
                 statusCode.value(),
                 error,
@@ -87,6 +98,7 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     ResponseEntity<ApiResult<Void>> handleDataIntegrity(DataIntegrityViolationException exception, HttpServletRequest request) {
+        log.warn("data integrity violation path={} message={}", request.getRequestURI(), exception.getMostSpecificCause().getMessage());
         ApiErrorResponse error = new ApiErrorResponse(
                 HttpStatus.CONFLICT.value(),
                 HttpStatus.CONFLICT.getReasonPhrase(),
@@ -123,6 +135,7 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiResult<Void>> handleUnexpected(Exception exception, HttpServletRequest request) {
+        log.error("unexpected server error path={} message={}", request.getRequestURI(), exception.getMessage(), exception);
         ApiErrorResponse error = new ApiErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
