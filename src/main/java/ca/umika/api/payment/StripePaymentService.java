@@ -77,7 +77,13 @@ public class StripePaymentService {
         if (existing != null && existing.getProviderIntentId() != null && !STATUS_FAILED.equalsIgnoreCase(existing.getStatus())) {
             PaymentIntent paymentIntent = retrievePaymentIntent(existing.getProviderIntentId());
             updateTransactionFromIntent(existing, paymentIntent, null);
-            return toIntentResponse(existing, paymentIntent);
+            if ("succeeded".equalsIgnoreCase(paymentIntent.getStatus())) {
+                orderService.markPaidFromPayment(order.getId(), user.getId(), "Stripe payment already succeeded");
+                return toIntentResponse(existing, paymentIntent);
+            }
+            if (canReusePaymentIntent(paymentIntent)) {
+                return toIntentResponse(existing, paymentIntent);
+            }
         }
 
         PaymentAttemptEntity attempt = createAttempt(order, "INITIATED", Map.of(
@@ -85,6 +91,9 @@ public class StripePaymentService {
                 "amount", order.getFinalTotal(),
                 "currency", properties.resolvedCurrency()
         ));
+        String idempotencyKey = existing == null
+                ? "order-" + order.getId() + "-payment-intent"
+                : "order-" + order.getId() + "-payment-intent-" + attempt.getAttemptNumber();
 
         try {
             PaymentIntent paymentIntent = PaymentIntent.create(
@@ -101,10 +110,12 @@ public class StripePaymentService {
                             .putMetadata("orderNumber", order.getOrderNumber())
                             .putMetadata("userId", user.getId().toString())
                             .build(),
-                    requestOptions("order-" + order.getId() + "-payment-intent")
+                    requestOptions(idempotencyKey)
             );
 
-            PaymentTransactionEntity transaction = new PaymentTransactionEntity();
+            PaymentTransactionEntity transaction = transactionRepository
+                    .findFirstByProviderIntentIdOrderByCreatedAtDesc(paymentIntent.getId())
+                    .orElseGet(PaymentTransactionEntity::new);
             transaction.setOrderId(order.getId());
             transaction.setUserId(user.getId());
             transaction.setProvider(PROVIDER);
@@ -121,6 +132,9 @@ public class StripePaymentService {
                     "status", paymentIntent.getStatus()
             ));
             attemptRepository.save(attempt);
+            if ("succeeded".equalsIgnoreCase(paymentIntent.getStatus())) {
+                orderService.markPaidFromPayment(order.getId(), user.getId(), "Stripe payment succeeded");
+            }
             return toIntentResponse(transaction, paymentIntent);
         } catch (StripeException exception) {
             attempt.setStatus("FAILED");
@@ -177,7 +191,7 @@ public class StripePaymentService {
     }
 
     private StripePaymentStatusResponse applyPaymentIntent(PaymentIntent paymentIntent, UUID changedBy) {
-        PaymentTransactionEntity transaction = transactionRepository.findByProviderIntentId(paymentIntent.getId())
+        PaymentTransactionEntity transaction = transactionRepository.findFirstByProviderIntentIdOrderByCreatedAtDesc(paymentIntent.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Payment transaction not found for Stripe intent: " + paymentIntent.getId()));
         updateTransactionFromIntent(transaction, paymentIntent, null);
 
@@ -213,7 +227,7 @@ public class StripePaymentService {
 
     private PaymentTransactionEntity resolveTransaction(UUID orderId, String paymentIntentId) {
         if (paymentIntentId != null) {
-            return transactionRepository.findByProviderIntentId(paymentIntentId)
+            return transactionRepository.findFirstByProviderIntentIdOrderByCreatedAtDesc(paymentIntentId)
                     .orElseThrow(() -> new ResourceNotFoundException("Payment transaction not found for Stripe intent: " + paymentIntentId));
         }
         if (orderId == null) {
@@ -242,12 +256,14 @@ public class StripePaymentService {
     }
 
     private StripePaymentIntentResponse toIntentResponse(PaymentTransactionEntity transaction, PaymentIntent paymentIntent) {
+        String status = mapPaymentIntentStatus(paymentIntent.getStatus());
+        String clientSecret = canReusePaymentIntent(paymentIntent) ? paymentIntent.getClientSecret() : null;
         return new StripePaymentIntentResponse(
                 transaction.getOrderId(),
                 transaction.getId(),
                 paymentIntent.getId(),
-                paymentIntent.getClientSecret(),
-                transaction.getStatus(),
+                clientSecret,
+                status,
                 transaction.getAmount(),
                 transaction.getCurrency(),
                 properties.publishableKey()
@@ -278,7 +294,7 @@ public class StripePaymentService {
     }
 
     private RequestOptions requestOptions(String idempotencyKey) {
-        RequestOptions.RequestOptionsBuilder builder = RequestOptions.builder().setApiKey(properties.secretKey());
+        RequestOptions.RequestOptionsBuilder builder = RequestOptions.builder().setApiKey(trimToNull(properties.secretKey()));
         if (idempotencyKey != null && !idempotencyKey.isBlank()) {
             builder.setIdempotencyKey(idempotencyKey);
         }
@@ -305,6 +321,16 @@ public class StripePaymentService {
         };
     }
 
+    private boolean canReusePaymentIntent(PaymentIntent paymentIntent) {
+        if (paymentIntent == null || paymentIntent.getStatus() == null) {
+            return false;
+        }
+        return switch (paymentIntent.getStatus()) {
+            case "requires_payment_method", "requires_confirmation", "requires_action", "processing", "requires_capture" -> true;
+            default -> false;
+        };
+    }
+
     private String resolveFailureReason(PaymentIntent paymentIntent) {
         if (paymentIntent.getLastPaymentError() == null) {
             return null;
@@ -322,11 +348,20 @@ public class StripePaymentService {
     }
 
     private void ensureStripeConfigured() {
-        if (properties.secretKey() == null || properties.secretKey().isBlank()) {
+        String secretKey = trimToNull(properties.secretKey());
+        String publishableKey = trimToNull(properties.publishableKey());
+
+        if (secretKey == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Stripe secret key is not configured");
         }
-        if (properties.publishableKey() == null || properties.publishableKey().isBlank()) {
+        if (secretKey.startsWith("pk_")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Stripe secret key must use an sk_ or restricted rk_ server key, not a pk_ publishable key");
+        }
+        if (publishableKey == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Stripe publishable key is not configured");
+        }
+        if (!publishableKey.startsWith("pk_")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Stripe publishable key must use a pk_ key");
         }
     }
 

@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface PaymentTransactionRepository extends JpaRepository<PaymentTransactionEntity, UUID> {
     Optional<PaymentTransactionEntity> findFirstByOrderIdAndProviderOrderByCreatedAtDesc(UUID orderId, String provider);
-    Optional<PaymentTransactionEntity> findByProviderIntentId(String providerIntentId);
+    Optional<PaymentTransactionEntity> findFirstByProviderIntentIdOrderByCreatedAtDesc(String providerIntentId);
 }
