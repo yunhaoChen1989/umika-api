@@ -122,33 +122,44 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public Page<OrderResponse> findAll(Authentication authentication, Pageable pageable, String userEmail, String email) {
+    public Page<OrderResponse> findAll(Authentication authentication, Pageable pageable, String userEmail, String email, UUID locationId) {
         UserEntity user = resolveUser(authentication);
         String searchEmail = normalizeSearchEmail(userEmail, email);
+        if (locationId != null) {
+            ensureLocationExists(locationId);
+        }
         if (isAdmin(user.getId())) {
-            return findAdminOrders(pageable, searchEmail);
+            return findAdminOrders(pageable, searchEmail, locationId);
         }
 
         List<UserPermissionEntity> permissions = userPermissionRepository
                 .findByUserIdAndPermissionCodeIgnoreCaseAndIsGrantedTrue(user.getId(), ORDER_MANAGE_PERMISSION);
         if (!permissions.isEmpty()) {
-            return findManagerOrders(user, permissions, pageable, searchEmail);
+            return findManagerOrders(user, permissions, pageable, searchEmail, locationId);
         }
         if (isStoreRole(user.getId()) && user.getLocationId() != null) {
-            return findStoreRoleOrders(user, pageable, searchEmail);
+            return findStoreRoleOrders(user, pageable, searchEmail, locationId);
         }
         if (searchEmail != null && !user.getEmail().equalsIgnoreCase(searchEmail)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Cannot view another user's order history");
         }
+        if (locationId != null) {
+            return repository.findByUserIdAndLocationId(user.getId(), locationId, pageable).map(this::toResponse);
+        }
         return repository.findByUserId(user.getId(), pageable).map(this::toResponse);
     }
 
-    private Page<OrderResponse> findAdminOrders(Pageable pageable, String userEmail) {
+    private Page<OrderResponse> findAdminOrders(Pageable pageable, String userEmail, UUID locationId) {
         if (userEmail == null || userEmail.isBlank()) {
+            if (locationId != null) {
+                return repository.findByLocationId(locationId, pageable).map(this::toResponse);
+            }
             return repository.findAll(pageable).map(this::toResponse);
         }
         return userRepository.findByEmail(userEmail)
-                .map(targetUser -> repository.findByUserId(targetUser.getId(), pageable).map(this::toResponse))
+                .map(targetUser -> locationId == null
+                        ? repository.findByUserId(targetUser.getId(), pageable).map(this::toResponse)
+                        : repository.findByUserIdAndLocationId(targetUser.getId(), locationId, pageable).map(this::toResponse))
                 .orElseGet(() -> Page.empty(pageable));
     }
 
@@ -156,34 +167,52 @@ public class OrderService {
             UserEntity manager,
             List<UserPermissionEntity> permissions,
             Pageable pageable,
-            String userEmail
+            String userEmail,
+            UUID locationId
     ) {
         if (permissions.stream().anyMatch(permission -> permission.getLocationId() == null)) {
             if (userEmail == null || userEmail.isBlank()) {
+                if (locationId != null) {
+                    return repository.findByLocationId(locationId, pageable).map(this::toResponse);
+                }
                 return repository.findAll(pageable).map(this::toResponse);
             }
             return userRepository.findByEmail(userEmail)
-                    .map(targetUser -> repository.findByUserId(targetUser.getId(), pageable).map(this::toResponse))
+                    .map(targetUser -> locationId == null
+                            ? repository.findByUserId(targetUser.getId(), pageable).map(this::toResponse)
+                            : repository.findByUserIdAndLocationId(targetUser.getId(), locationId, pageable).map(this::toResponse))
                     .orElseGet(() -> Page.empty(pageable));
         }
 
         List<UUID> locationIds = permissions.stream()
                 .map(UserPermissionEntity::getLocationId)
-                .filter(locationId -> locationId != null)
+                .filter(permissionLocationId -> permissionLocationId != null)
                 .distinct()
                 .toList();
-        if (locationIds.isEmpty()) {
-            return repository.findByUserId(manager.getId(), pageable).map(this::toResponse);
+        if (locationId != null) {
+            if (!locationIds.contains(locationId)) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing order permission for location");
+            }
+            locationIds = List.of(locationId);
+        }
+        List<UUID> allowedLocationIds = locationIds;
+        if (allowedLocationIds.isEmpty()) {
+            return locationId == null
+                    ? repository.findByUserId(manager.getId(), pageable).map(this::toResponse)
+                    : Page.empty(pageable);
         }
         if (userEmail == null || userEmail.isBlank()) {
-            return repository.findByLocationIdIn(locationIds, pageable).map(this::toResponse);
+            return repository.findByLocationIdIn(allowedLocationIds, pageable).map(this::toResponse);
         }
         return userRepository.findByEmail(userEmail)
-                .map(targetUser -> repository.findByUserIdAndLocationIdIn(targetUser.getId(), locationIds, pageable).map(this::toResponse))
+                .map(targetUser -> repository.findByUserIdAndLocationIdIn(targetUser.getId(), allowedLocationIds, pageable).map(this::toResponse))
                 .orElseGet(() -> Page.empty(pageable));
     }
 
-    private Page<OrderResponse> findStoreRoleOrders(UserEntity storeUser, Pageable pageable, String userEmail) {
+    private Page<OrderResponse> findStoreRoleOrders(UserEntity storeUser, Pageable pageable, String userEmail, UUID locationId) {
+        if (locationId != null && !locationId.equals(storeUser.getLocationId())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing order permission for location");
+        }
         List<UUID> locationIds = List.of(storeUser.getLocationId());
         if (userEmail == null || userEmail.isBlank()) {
             return repository.findByLocationIdIn(locationIds, pageable).map(this::toResponse);
