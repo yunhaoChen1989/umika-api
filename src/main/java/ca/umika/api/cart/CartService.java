@@ -22,7 +22,10 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -32,6 +35,8 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 @Transactional
 public class CartService {
+
+    private static final Logger log = LoggerFactory.getLogger(CartService.class);
 
     private static final String ACTIVE = "ACTIVE";
     private static final String CATEGORY = "CATEGORY";
@@ -77,9 +82,10 @@ public class CartService {
         ensureLocationExists(locationId);
         CartOwner owner = resolveOwner(authentication, request.sessionId(), true);
 
-        CartEntity cart = owner.userId() != null
-                ? cartRepository.findByUserIdAndLocationIdAndStatus(owner.userId(), locationId, ACTIVE).orElseGet(() -> createCart(owner, locationId))
-                : cartRepository.findBySessionIdAndLocationIdAndStatus(owner.sessionId(), locationId, ACTIVE).orElseGet(() -> createCart(owner, locationId));
+        List<CartEntity> activeCarts = owner.userId() != null
+                ? cartRepository.findByUserIdAndLocationIdAndStatusOrderByCreatedAtDesc(owner.userId(), locationId, ACTIVE)
+                : cartRepository.findBySessionIdAndLocationIdAndStatusOrderByCreatedAtDesc(owner.sessionId(), locationId, ACTIVE);
+        CartEntity cart = resolveSingleActiveCart(activeCarts).orElseGet(() -> createCart(owner, locationId));
         return toResponse(cart);
     }
 
@@ -167,6 +173,31 @@ public class CartService {
         cart.setStatus(ACTIVE);
         cart.setSubtotal(BigDecimal.ZERO);
         return cartRepository.save(cart);
+    }
+
+    private Optional<CartEntity> resolveSingleActiveCart(List<CartEntity> activeCarts) {
+        if (activeCarts == null || activeCarts.isEmpty()) {
+            return Optional.empty();
+        }
+
+        CartEntity keeper = activeCarts.get(0);
+        if (activeCarts.size() == 1) {
+            return Optional.of(keeper);
+        }
+
+        log.warn("duplicate active carts found ownerUserId={} ownerSessionId={} locationId={} activeCount={} keeperCartId={}",
+                keeper.getUserId(), keeper.getSessionId(), keeper.getLocationId(), activeCarts.size(), keeper.getId());
+        for (int i = 1; i < activeCarts.size(); i++) {
+            CartEntity duplicate = activeCarts.get(i);
+            cartItemRepository.findByCart_Id(duplicate.getId()).forEach(item -> {
+                item.setCart(keeper);
+                cartItemRepository.save(item);
+            });
+            duplicate.setStatus("ABANDONED");
+            cartRepository.save(duplicate);
+        }
+        recalculateSubtotal(keeper);
+        return Optional.of(keeper);
     }
 
     private ResolvedCartItem resolveMenuItem(UUID locationId, UUID menuItemId, List<UUID> optionIds, String note) {
