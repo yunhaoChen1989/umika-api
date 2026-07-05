@@ -1,6 +1,7 @@
 package ca.umika.api.order;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record OrderCheckoutRequest(
@@ -10,6 +11,7 @@ public record OrderCheckoutRequest(
         UUID addressId,
         String customerNote,
         Integer pointsToRedeem,
-        BigDecimal tipAmount
+        BigDecimal tipAmount,
+        LocalDateTime requestedPickupTime
 ) {
 }

@@ -30,6 +30,7 @@ public class BusinessSettingService {
             definition("ORDER", "DEFAULT_TAX_RATE", "Tax rate", "Sales tax percentage used for order checkout.", "decimal", "percent", "13"),
             definition("ORDER", "ORDER_DISCOUNT_PERCENT", "Order discount percent", "Default order-level discount percentage.", "decimal", "percent", "0"),
             definition("ORDER", "ORDER_DISCOUNT_AMOUNT", "Order discount amount", "Default fixed order-level discount amount.", "decimal", "currency", "0"),
+            definition("ORDER", "MIN_PICKUP_TIME_MINUTES", "Minimum pickup time", "Minimum preparation time before a pickup order can be ready.", "integer", "minutes", "15"),
             definition("REWARD", "POINTS_PER_DOLLAR", "Points per dollar", "Loyalty points earned per paid dollar.", "decimal", "points", "1"),
             definition("REWARD", "POINT_VALUE_CENTS", "Point value", "Cash redemption value of one point, in cents.", "decimal", "cents", "5"),
             definition("REWARD", "MAX_REDEMPTION_PERCENT", "Max redemption percent", "Maximum order subtotal percentage payable with points.", "decimal", "percent", "50"),

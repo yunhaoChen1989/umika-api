@@ -3,7 +3,7 @@ package ca.umika.api.order;
 import jakarta.persistence.*;
 import ca.umika.api.common.persistence.BaseEntity;
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -49,6 +49,9 @@ public class OrderEntity extends BaseEntity {
 
     @Column(name = "final_total")
     private BigDecimal finalTotal;
+
+    @Column(name = "requested_pickup_time")
+    private LocalDateTime requestedPickupTime;
 
     @Column(name = "customer_note")
     private String customerNote;
@@ -169,6 +172,14 @@ public UUID getId() {
 
     public void setFinalTotal(BigDecimal finalTotal) {
         this.finalTotal = finalTotal;
+    }
+
+    public LocalDateTime getRequestedPickupTime() {
+        return requestedPickupTime;
+    }
+
+    public void setRequestedPickupTime(LocalDateTime requestedPickupTime) {
+        this.requestedPickupTime = requestedPickupTime;
     }
 
     public String getCustomerNote() {

@@ -20,6 +20,7 @@ public record OrderResponse(
         BigDecimal taxAmount,
         BigDecimal tipAmount,
         BigDecimal finalTotal,
+        LocalDateTime requestedPickupTime,
         String customerNote,
         String internalNote,
         Integer pointsRedeemed,

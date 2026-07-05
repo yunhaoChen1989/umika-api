@@ -23,6 +23,7 @@ public class OrderMapper {
                 entity.getTaxAmount(),
                 entity.getTipAmount(),
                 entity.getFinalTotal(),
+                entity.getRequestedPickupTime(),
                 entity.getCustomerNote(),
                 entity.getInternalNote(),
                 entity.getPromotionId(),
@@ -53,6 +54,7 @@ public class OrderMapper {
         entity.setTaxAmount(dto.taxAmount());
         entity.setTipAmount(dto.tipAmount());
         entity.setFinalTotal(dto.finalTotal());
+        entity.setRequestedPickupTime(dto.requestedPickupTime());
         entity.setCustomerNote(dto.customerNote());
         entity.setInternalNote(dto.internalNote());
         entity.setPromotionId(dto.promotionId());

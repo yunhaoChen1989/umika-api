@@ -2,7 +2,6 @@ package ca.umika.api.order;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.LocalDate;
 import java.util.UUID;
 
 public record OrderDto(
@@ -19,6 +18,7 @@ public record OrderDto(
         BigDecimal taxAmount,
         BigDecimal tipAmount,
         BigDecimal finalTotal,
+        LocalDateTime requestedPickupTime,
         String customerNote,
         String internalNote,
         UUID promotionId,

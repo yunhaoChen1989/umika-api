@@ -25,6 +25,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
@@ -61,6 +62,7 @@ public class OrderService {
     private static final String DEFAULT_TAX_RATE = "DEFAULT_TAX_RATE";
     private static final String REFERRAL_FIRST_ORDER_POINTS = "REFERRAL_FIRST_ORDER_POINTS";
     private static final String MIN_REFERRAL_ORDER_AMOUNT = "MIN_REFERRAL_ORDER_AMOUNT";
+    private static final String MIN_PICKUP_TIME_MINUTES = "MIN_PICKUP_TIME_MINUTES";
 
     private final OrderRepository repository;
     private final OrderItemRepository orderItemRepository;
@@ -80,6 +82,7 @@ public class OrderService {
     private final AccountRoleService accountRoleService;
     private final UserPermissionRepository userPermissionRepository;
     private final ObjectMapper objectMapper;
+    private final Clock clock;
 
     public OrderService(
             OrderRepository repository,
@@ -119,6 +122,7 @@ public class OrderService {
         this.accountRoleService = accountRoleService;
         this.userPermissionRepository = userPermissionRepository;
         this.objectMapper = objectMapper;
+        this.clock = Clock.systemDefaultZone();
     }
 
     @Transactional(readOnly = true)
@@ -271,12 +275,15 @@ public class OrderService {
         BigDecimal tipAmount = normalizeTipAmount(request.tipAmount());
         BigDecimal finalTotal = taxableAmount.add(taxAmount).add(tipAmount).setScale(2, RoundingMode.HALF_UP);
 
+        String orderType = normalizeOrderType(request.orderType());
+        LocalDateTime requestedPickupTime = resolveRequestedPickupTime(cart.getLocationId(), orderType, request.requestedPickupTime());
+
         OrderEntity order = new OrderEntity();
         order.setUserId(user.getId());
         order.setLocationId(cart.getLocationId());
         order.setAddressId(request.addressId());
         order.setOrderNumber(generateOrderNumber());
-        order.setOrderType(normalizeOrderType(request.orderType()));
+        order.setOrderType(orderType);
         order.setStatus(STATUS_PENDING);
         order.setSubtotal(subtotal);
         order.setTotalDiscount(redemption.amount());
@@ -284,6 +291,7 @@ public class OrderService {
         order.setTaxAmount(taxAmount);
         order.setTipAmount(tipAmount);
         order.setFinalTotal(finalTotal);
+        order.setRequestedPickupTime(requestedPickupTime);
         order.setCustomerNote(trimToNull(request.customerNote()));
         order.setTaxExempt(false);
         order = repository.save(order);
@@ -515,7 +523,7 @@ public class OrderService {
         if (REFERRAL_FIRST_ORDER_POINTS.equals(key) || MIN_REFERRAL_ORDER_AMOUNT.equals(key)) {
             return "REFERRAL";
         }
-        if (DEFAULT_TAX_RATE.equals(key)) {
+        if (DEFAULT_TAX_RATE.equals(key) || MIN_PICKUP_TIME_MINUTES.equals(key)) {
             return "ORDER";
         }
         return "REWARD";
@@ -557,6 +565,7 @@ public class OrderService {
                 order.getTaxAmount(),
                 nullToZero(order.getTipAmount()),
                 order.getFinalTotal(),
+                order.getRequestedPickupTime(),
                 order.getCustomerNote(),
                 order.getInternalNote(),
                 redemption == null ? 0 : redemption.getPointsRedeemed(),
@@ -701,6 +710,26 @@ public class OrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid orderType");
         }
         return normalized;
+    }
+
+    private LocalDateTime resolveRequestedPickupTime(UUID locationId, String orderType, LocalDateTime requestedPickupTime) {
+        if (!"PICKUP".equals(orderType)) {
+            return null;
+        }
+
+        int minimumMinutes = settingDecimal(locationId, MIN_PICKUP_TIME_MINUTES, BigDecimal.valueOf(15))
+                .setScale(0, RoundingMode.CEILING)
+                .intValue();
+        if (minimumMinutes < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Minimum pickup time cannot be negative");
+        }
+
+        LocalDateTime earliestPickupTime = LocalDateTime.now(clock).plusMinutes(minimumMinutes);
+        LocalDateTime pickupTime = requestedPickupTime == null ? earliestPickupTime : requestedPickupTime;
+        if (pickupTime.isBefore(earliestPickupTime)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "requestedPickupTime must be at least " + minimumMinutes + " minutes from now");
+        }
+        return pickupTime;
     }
 
     private String normalizeStatus(String status) {
