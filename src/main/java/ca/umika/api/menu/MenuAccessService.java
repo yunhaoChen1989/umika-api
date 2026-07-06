@@ -53,7 +53,7 @@ public class MenuAccessService {
 
         if (locationId == null) {
             if (admin || hasGlobalMenuPermission(userId)) {
-                return new MenuAccessContext(userId, true, null);
+                return new MenuAccessContext(userId, admin, null);
             }
             throw unauthorized();
         }
