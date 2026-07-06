@@ -40,7 +40,7 @@ public class MenuRecommendationController {
     }
 
     @GetMapping("/manage")
-    public Page<MenuRecommendationDto> findManage(
+    public Page<MenuRecommendationManageResponse> findManage(
             Authentication authentication,
             Pageable pageable,
             @RequestParam(required = false) UUID locationId

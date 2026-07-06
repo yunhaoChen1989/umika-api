@@ -62,16 +62,18 @@ public class MenuRecommendationService {
     }
 
     @Transactional(readOnly = true)
-    public Page<MenuRecommendationDto> findManage(Authentication authentication, Pageable pageable, UUID locationId) {
+    public Page<MenuRecommendationManageResponse> findManage(Authentication authentication, Pageable pageable, UUID locationId) {
         menuAccessService.assertWriteAccess(authentication, locationId);
         if (locationId == null) {
-            return repository.findByLocationIdIsNull(pageable).map(mapper::toDto);
+            return repository.findByLocationIdIsNull(pageable)
+                    .map(recommendation -> toManageResponse(recommendation, null, Map.of()));
         }
-        List<MenuRecommendationDto> effectiveRecommendations = findManageRecommendations(locationId, pageable.getSort()).stream()
+        Map<UUID, LocationMenuOverrideEntity> overrideByItemId = findItemOverrides(locationId);
+        List<MenuRecommendationManageResponse> effectiveRecommendations = findManageRecommendations(locationId, pageable.getSort()).stream()
                 .collect(Collectors.collectingAndThen(
                         Collectors.toMap(
                                 MenuRecommendationEntity::getMenuItemId,
-                                mapper::toDto,
+                                recommendation -> toManageResponse(recommendation, locationId, overrideByItemId),
                                 (first, ignored) -> first,
                                 LinkedHashMap::new
                         ),
@@ -145,6 +147,32 @@ public class MenuRecommendationService {
         return recommendations;
     }
 
+    private MenuRecommendationManageResponse toManageResponse(
+            MenuRecommendationEntity recommendation,
+            UUID requestedLocationId,
+            Map<UUID, LocationMenuOverrideEntity> overrideByItemId
+    ) {
+        LocationMenuOverrideEntity override = requestedLocationId == null
+                ? null
+                : overrideByItemId.get(recommendation.getMenuItemId());
+        Boolean locationItemVisible = requestedLocationId == null
+                ? null
+                : !Boolean.FALSE.equals(override == null ? null : override.getIsVisible());
+
+        return new MenuRecommendationManageResponse(
+                recommendation.getId(),
+                recommendation.getLocationId(),
+                recommendation.getMenuItemId(),
+                recommendation.getTitle(),
+                recommendation.getSubtitle(),
+                recommendation.getSortOrder(),
+                recommendation.getIsActive(),
+                locationItemVisible,
+                recommendation.getCreatedAt(),
+                recommendation.getUpdatedAt()
+        );
+    }
+
     public MenuRecommendationVisibilityResponse updateLocationVisibility(
             Authentication authentication,
             MenuRecommendationVisibilityRequest request
@@ -187,14 +215,7 @@ public class MenuRecommendationService {
         Map<UUID, String> imageByItemId = resolveImages(menuItemIds);
         Map<UUID, LocationMenuOverrideEntity> overrideByItemId = locationId == null
                 ? Map.of()
-                : overrideRepository.findByLocationId(locationId).stream()
-                        .filter(override -> ITEM.equalsIgnoreCase(override.getTargetType()))
-                        .collect(Collectors.toMap(
-                                LocationMenuOverrideEntity::getTargetId,
-                                override -> override,
-                                (left, right) -> right,
-                                LinkedHashMap::new
-                        ));
+                : findItemOverrides(locationId);
 
         return recommendations.stream()
                 .sorted(Comparator
@@ -211,6 +232,17 @@ public class MenuRecommendationService {
                                 LinkedHashMap::new
                         ),
                         map -> List.copyOf(map.values())
+                ));
+    }
+
+    private Map<UUID, LocationMenuOverrideEntity> findItemOverrides(UUID locationId) {
+        return overrideRepository.findByLocationId(locationId).stream()
+                .filter(override -> ITEM.equalsIgnoreCase(override.getTargetType()))
+                .collect(Collectors.toMap(
+                        LocationMenuOverrideEntity::getTargetId,
+                        override -> override,
+                        (left, right) -> right,
+                        LinkedHashMap::new
                 ));
     }
 
