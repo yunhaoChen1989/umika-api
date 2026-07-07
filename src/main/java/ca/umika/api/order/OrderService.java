@@ -9,6 +9,7 @@ import ca.umika.api.cart.CartItemEntity;
 import ca.umika.api.cart.CartItemRepository;
 import ca.umika.api.cart.CartRepository;
 import ca.umika.api.common.web.ResourceNotFoundException;
+import ca.umika.api.notification.OrderNotificationService;
 import ca.umika.api.referral.ReferralEntity;
 import ca.umika.api.referral.ReferralRepository;
 import ca.umika.api.reward.RewardRedemptionEntity;
@@ -83,6 +84,7 @@ public class OrderService {
     private final ReferralRepository referralRepository;
     private final AccountRoleService accountRoleService;
     private final UserPermissionRepository userPermissionRepository;
+    private final OrderNotificationService orderNotificationService;
     private final ObjectMapper objectMapper;
     private final Clock clock;
 
@@ -104,6 +106,7 @@ public class OrderService {
             ReferralRepository referralRepository,
             AccountRoleService accountRoleService,
             UserPermissionRepository userPermissionRepository,
+            OrderNotificationService orderNotificationService,
             ObjectMapper objectMapper
     ) {
         this.repository = repository;
@@ -123,6 +126,7 @@ public class OrderService {
         this.referralRepository = referralRepository;
         this.accountRoleService = accountRoleService;
         this.userPermissionRepository = userPermissionRepository;
+        this.orderNotificationService = orderNotificationService;
         this.objectMapper = objectMapper;
         this.clock = Clock.systemDefaultZone();
     }
@@ -354,10 +358,15 @@ public class OrderService {
 
         String newStatus = normalizeStatus(request.status());
         String oldStatus = order.getStatus();
-        if (newStatus.equalsIgnoreCase(oldStatus)) {
+        boolean pickupTimeChanged = request.requestedPickupTime() != null
+                && (order.getRequestedPickupTime() == null || !request.requestedPickupTime().isEqual(order.getRequestedPickupTime()));
+        if (newStatus.equalsIgnoreCase(oldStatus) && !pickupTimeChanged) {
             return toResponse(order);
         }
 
+        if (request.requestedPickupTime() != null) {
+            order.setRequestedPickupTime(resolveRequestedPickupTime(order.getLocationId(), order.getOrderType(), request.requestedPickupTime()));
+        }
         order.setStatus(newStatus);
         order = repository.save(order);
         createStatusHistory(order.getId(), oldStatus, newStatus, user.getId(), trimToNull(request.note()));
@@ -368,7 +377,9 @@ public class OrderService {
             refreshWallet(order.getUserId());
         }
 
-        return toResponse(order);
+        OrderResponse response = toResponse(order);
+        orderNotificationService.notifyStatusUpdated(response);
+        return response;
     }
 
     public OrderResponse markPaidFromPayment(UUID id, UUID changedBy, String note) {
@@ -378,7 +389,8 @@ public class OrderService {
             return toResponse(order);
         }
 
-        String newStatus = settingBoolean(order.getLocationId(), AUTO_ACCEPT_ORDERS, true) ? STATUS_PREPARING : STATUS_PAID;
+        boolean autoAccepted = settingBoolean(order.getLocationId(), AUTO_ACCEPT_ORDERS, true);
+        String newStatus = autoAccepted ? STATUS_PREPARING : STATUS_PAID;
         String oldStatus = order.getStatus();
         order.setStatus(newStatus);
         order = repository.save(order);
@@ -388,7 +400,9 @@ public class OrderService {
         awardPaidOrderPoints(order);
         awardReferralFirstOrderIfEligible(order);
         refreshWallet(order.getUserId());
-        return toResponse(order);
+        OrderResponse response = toResponse(order);
+        orderNotificationService.notifyPaidOrder(response, autoAccepted);
+        return response;
     }
 
     public void delete(Authentication authentication, UUID id) {
