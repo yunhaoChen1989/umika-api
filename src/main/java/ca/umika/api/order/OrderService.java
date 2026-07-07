@@ -54,6 +54,7 @@ public class OrderService {
     private static final String CHECKED_OUT_CART = "CHECKED_OUT";
     private static final String STATUS_PENDING = "PENDING";
     private static final String STATUS_PAID = "PAID";
+    private static final String STATUS_PREPARING = "PREPARING";
     private static final String ORDER_MANAGE_PERMISSION = "ORDER_MANAGE";
 
     private static final String POINTS_PER_DOLLAR = "POINTS_PER_DOLLAR";
@@ -63,6 +64,7 @@ public class OrderService {
     private static final String REFERRAL_FIRST_ORDER_POINTS = "REFERRAL_FIRST_ORDER_POINTS";
     private static final String MIN_REFERRAL_ORDER_AMOUNT = "MIN_REFERRAL_ORDER_AMOUNT";
     private static final String MIN_PICKUP_TIME_MINUTES = "MIN_PICKUP_TIME_MINUTES";
+    private static final String AUTO_ACCEPT_ORDERS = "AUTO_ACCEPT_ORDERS";
 
     private final OrderRepository repository;
     private final OrderItemRepository orderItemRepository;
@@ -371,17 +373,18 @@ public class OrderService {
 
     public OrderResponse markPaidFromPayment(UUID id, UUID changedBy, String note) {
         OrderEntity order = findOrder(id);
-        if (STATUS_PAID.equalsIgnoreCase(order.getStatus())) {
+        if (isPaidOrAcceptedStatus(order.getStatus())) {
             log.info("order already paid orderId={} orderNumber={} changedBy={}", order.getId(), order.getOrderNumber(), changedBy);
             return toResponse(order);
         }
 
+        String newStatus = settingBoolean(order.getLocationId(), AUTO_ACCEPT_ORDERS, true) ? STATUS_PREPARING : STATUS_PAID;
         String oldStatus = order.getStatus();
-        order.setStatus(STATUS_PAID);
+        order.setStatus(newStatus);
         order = repository.save(order);
-        createStatusHistory(order.getId(), oldStatus, STATUS_PAID, changedBy, trimToNull(note));
+        createStatusHistory(order.getId(), oldStatus, newStatus, changedBy, trimToNull(note));
         log.info("order status changed from payment orderId={} orderNumber={} oldStatus={} newStatus={} changedBy={}",
-                order.getId(), order.getOrderNumber(), oldStatus, STATUS_PAID, changedBy);
+                order.getId(), order.getOrderNumber(), oldStatus, newStatus, changedBy);
         awardPaidOrderPoints(order);
         awardReferralFirstOrderIfEligible(order);
         refreshWallet(order.getUserId());
@@ -519,11 +522,37 @@ public class OrderService {
         }
     }
 
+    private boolean settingBoolean(UUID locationId, String key, boolean defaultValue) {
+        String group = settingGroup(key);
+        Optional<String> locationValue = locationId == null ? Optional.empty() : locationSettingRepository
+                .findByLocationIdAndSettingGroupIgnoreCaseAndSettingKeyIgnoreCase(locationId, group, key)
+                .map(setting -> setting.getSettingValue())
+                .or(() -> locationSettingRepository.findByLocationIdAndSettingKeyIgnoreCase(locationId, key)
+                        .map(setting -> setting.getSettingValue()));
+        String value = locationValue
+                .or(() -> systemSettingRepository.findBySettingGroupAndSettingKeyIgnoreCase(group, key)
+                        .map(setting -> setting.getSettingValue()))
+                .or(() -> systemSettingRepository.findBySettingKey(key)
+                        .map(setting -> setting.getSettingValue()))
+                .orElse(null);
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+        String normalized = value.trim();
+        if ("true".equalsIgnoreCase(normalized) || "1".equals(normalized) || "yes".equalsIgnoreCase(normalized)) {
+            return true;
+        }
+        if ("false".equalsIgnoreCase(normalized) || "0".equals(normalized) || "no".equalsIgnoreCase(normalized)) {
+            return false;
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid setting value for " + key);
+    }
+
     private String settingGroup(String key) {
         if (REFERRAL_FIRST_ORDER_POINTS.equals(key) || MIN_REFERRAL_ORDER_AMOUNT.equals(key)) {
             return "REFERRAL";
         }
-        if (DEFAULT_TAX_RATE.equals(key) || MIN_PICKUP_TIME_MINUTES.equals(key)) {
+        if (DEFAULT_TAX_RATE.equals(key) || MIN_PICKUP_TIME_MINUTES.equals(key) || AUTO_ACCEPT_ORDERS.equals(key)) {
             return "ORDER";
         }
         return "REWARD";
@@ -738,6 +767,10 @@ public class OrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid order status");
         }
         return normalized;
+    }
+
+    private boolean isPaidOrAcceptedStatus(String status) {
+        return status != null && Set.of("PAID", "PREPARING", "READY", "COMPLETED").contains(status.trim().toUpperCase());
     }
 
     private String trimToNull(String value) {

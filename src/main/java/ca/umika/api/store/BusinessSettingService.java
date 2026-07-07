@@ -31,6 +31,7 @@ public class BusinessSettingService {
             definition("ORDER", "ORDER_DISCOUNT_PERCENT", "Order discount percent", "Default order-level discount percentage.", "decimal", "percent", "0"),
             definition("ORDER", "ORDER_DISCOUNT_AMOUNT", "Order discount amount", "Default fixed order-level discount amount.", "decimal", "currency", "0"),
             definition("ORDER", "MIN_PICKUP_TIME_MINUTES", "Minimum pickup time", "Minimum preparation time before a pickup order can be ready.", "integer", "minutes", "15"),
+            definition("ORDER", "AUTO_ACCEPT_ORDERS", "Auto accept orders", "Automatically accept paid orders and move them into preparation.", "boolean", "boolean", "true"),
             definition("REWARD", "POINTS_PER_DOLLAR", "Points per dollar", "Loyalty points earned per paid dollar.", "decimal", "points", "1"),
             definition("REWARD", "POINT_VALUE_CENTS", "Point value", "Cash redemption value of one point, in cents.", "decimal", "cents", "5"),
             definition("REWARD", "MAX_REDEMPTION_PERCENT", "Max redemption percent", "Maximum order subtotal percentage payable with points.", "decimal", "percent", "50"),
@@ -277,6 +278,15 @@ public class BusinessSettingService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, definition.key() + " value is required");
         }
         String trimmed = settingValue.trim();
+        if ("boolean".equals(definition.valueType())) {
+            if ("true".equalsIgnoreCase(trimmed) || "1".equals(trimmed) || "yes".equalsIgnoreCase(trimmed)) {
+                return "true";
+            }
+            if ("false".equalsIgnoreCase(trimmed) || "0".equals(trimmed) || "no".equalsIgnoreCase(trimmed)) {
+                return "false";
+            }
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, definition.key() + " must be true or false");
+        }
         BigDecimal value;
         try {
             value = new BigDecimal(trimmed);
