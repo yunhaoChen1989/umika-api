@@ -21,6 +21,8 @@ import ca.umika.api.reward.RewardWalletRepository;
 import ca.umika.api.store.LocationRepository;
 import ca.umika.api.store.LocationSettingRepository;
 import ca.umika.api.user.UserEntity;
+import ca.umika.api.user.UserProfileEntity;
+import ca.umika.api.user.UserProfileRepository;
 import ca.umika.api.user.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -75,6 +77,7 @@ public class OrderService {
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final UserRepository userRepository;
+    private final UserProfileRepository userProfileRepository;
     private final LocationRepository locationRepository;
     private final SystemSettingRepository systemSettingRepository;
     private final LocationSettingRepository locationSettingRepository;
@@ -97,6 +100,7 @@ public class OrderService {
             CartRepository cartRepository,
             CartItemRepository cartItemRepository,
             UserRepository userRepository,
+            UserProfileRepository userProfileRepository,
             LocationRepository locationRepository,
             SystemSettingRepository systemSettingRepository,
             LocationSettingRepository locationSettingRepository,
@@ -117,6 +121,7 @@ public class OrderService {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
         this.userRepository = userRepository;
+        this.userProfileRepository = userProfileRepository;
         this.locationRepository = locationRepository;
         this.systemSettingRepository = systemSettingRepository;
         this.locationSettingRepository = locationSettingRepository;
@@ -637,9 +642,12 @@ public class OrderService {
                 .toList();
         RewardRedemptionEntity redemption = rewardRedemptionRepository.findByOrderId(order.getId()).orElse(null);
         Integer pointsEarned = rewardTransactionRepository.sumPointsByUserIdAndOrderIdAndType(order.getUserId(), order.getId(), "ORDER_EARN");
+        CustomerSummary customer = resolveCustomerSummary(order.getUserId());
         return new OrderResponse(
                 order.getId(),
                 order.getUserId(),
+                customer.name(),
+                customer.email(),
                 order.getLocationId(),
                 order.getAddressId(),
                 order.getOrderNumber(),
@@ -663,6 +671,34 @@ public class OrderService {
                 order.getCreatedAt(),
                 order.getUpdatedAt()
         );
+    }
+
+    private CustomerSummary resolveCustomerSummary(UUID userId) {
+        if (userId == null) {
+            return new CustomerSummary(null, null);
+        }
+
+        UserEntity user = userRepository.findById(userId).orElse(null);
+        UserProfileEntity profile = userProfileRepository.findByUserId(userId).orElse(null);
+        String name = buildCustomerName(profile);
+        String email = user == null ? null : user.getEmail();
+
+        return new CustomerSummary(name, email);
+    }
+
+    private String buildCustomerName(UserProfileEntity profile) {
+        if (profile == null) {
+            return null;
+        }
+
+        String firstName = profile.getFirstName() == null ? "" : profile.getFirstName().trim();
+        String lastName = profile.getLastName() == null ? "" : profile.getLastName().trim();
+        String fullName = (firstName + " " + lastName).trim();
+
+        return fullName.isBlank() ? null : fullName;
+    }
+
+    private record CustomerSummary(String name, String email) {
     }
 
     private void assertCanRead(Authentication authentication, OrderEntity order) {

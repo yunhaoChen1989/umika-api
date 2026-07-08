@@ -9,6 +9,8 @@ import java.util.UUID;
 public record OrderResponse(
         UUID id,
         UUID userId,
+        String customerName,
+        String customerEmail,
         UUID locationId,
         UUID addressId,
         String orderNumber,
