@@ -86,6 +86,11 @@ public class CartService {
                 ? cartRepository.findByUserIdAndLocationIdAndStatusOrderByCreatedAtDesc(owner.userId(), locationId, ACTIVE)
                 : cartRepository.findBySessionIdAndLocationIdAndStatusOrderByCreatedAtDesc(owner.sessionId(), locationId, ACTIVE);
         CartEntity cart = resolveSingleActiveCart(activeCarts).orElseGet(() -> createCart(owner, locationId));
+
+        if (owner.userId() != null && request.sessionId() != null && !request.sessionId().isBlank()) {
+            cart = mergeGuestCartIntoUserCart(cart, owner.userId(), request.sessionId().trim(), locationId);
+        }
+
         return toResponse(cart);
     }
 
@@ -198,6 +203,46 @@ public class CartService {
         }
         recalculateSubtotal(keeper);
         return Optional.of(keeper);
+    }
+
+    private CartEntity mergeGuestCartIntoUserCart(CartEntity userCart, UUID userId, String sessionId, UUID locationId) {
+        List<CartEntity> guestCarts = cartRepository.findBySessionIdAndLocationIdAndStatusOrderByCreatedAtDesc(sessionId, locationId, ACTIVE).stream()
+                .filter(cart -> cart.getUserId() == null || !cart.getUserId().equals(userId))
+                .toList();
+
+        if (guestCarts.isEmpty()) {
+            return userCart;
+        }
+
+        for (CartEntity guestCart : guestCarts) {
+            mergeCartItems(guestCart, userCart);
+            guestCart.setStatus("ABANDONED");
+            cartRepository.save(guestCart);
+        }
+
+        recalculateSubtotal(userCart);
+        return userCart;
+    }
+
+    private void mergeCartItems(CartEntity sourceCart, CartEntity targetCart) {
+        List<CartItemEntity> targetItems = new ArrayList<>(cartItemRepository.findByCart_Id(targetCart.getId()));
+
+        for (CartItemEntity sourceItem : cartItemRepository.findByCart_Id(sourceCart.getId())) {
+            Optional<CartItemEntity> matchingTarget = targetItems.stream()
+                    .filter(targetItem -> targetItem.getMenuItemId().equals(sourceItem.getMenuItemId()) && sameOptions(targetItem.getOptions(), sourceItem.getOptions()))
+                    .findFirst();
+
+            if (matchingTarget.isPresent()) {
+                CartItemEntity targetItem = matchingTarget.get();
+                targetItem.setQuantity(targetItem.getQuantity() + sourceItem.getQuantity());
+                cartItemRepository.save(targetItem);
+                cartItemRepository.delete(sourceItem);
+            } else {
+                sourceItem.setCart(targetCart);
+                cartItemRepository.save(sourceItem);
+                targetItems.add(sourceItem);
+            }
+        }
     }
 
     private ResolvedCartItem resolveMenuItem(UUID locationId, UUID menuItemId, List<UUID> optionIds, String note) {
