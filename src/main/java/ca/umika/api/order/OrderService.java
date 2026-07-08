@@ -365,7 +365,7 @@ public class OrderService {
         }
 
         if (request.requestedPickupTime() != null) {
-            order.setRequestedPickupTime(resolveRequestedPickupTime(order.getLocationId(), order.getOrderType(), request.requestedPickupTime()));
+            order.setRequestedPickupTime(resolveManagerRequestedPickupTime(order.getOrderType(), request.requestedPickupTime()));
         }
         order.setStatus(newStatus);
         order = repository.save(order);
@@ -773,6 +773,13 @@ public class OrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "requestedPickupTime must be at least " + minimumMinutes + " minutes from now");
         }
         return pickupTime;
+    }
+
+    private LocalDateTime resolveManagerRequestedPickupTime(String orderType, LocalDateTime requestedPickupTime) {
+        if (!"PICKUP".equals(orderType)) {
+            return null;
+        }
+        return requestedPickupTime;
     }
 
     private String normalizeStatus(String status) {
