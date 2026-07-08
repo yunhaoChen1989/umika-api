@@ -34,9 +34,10 @@ public class OrderController {
             Pageable pageable,
             @RequestParam(required = false) String userEmail,
             @RequestParam(required = false) String email,
-            @RequestParam(required = false) UUID locationId
+            @RequestParam(required = false) UUID locationId,
+            @RequestParam(required = false) String status
     ) {
-        return service.findAll(authentication, pageable, userEmail, email, locationId);
+        return service.findAll(authentication, pageable, userEmail, email, locationId, status);
     }
 
     @GetMapping("/{id}")
