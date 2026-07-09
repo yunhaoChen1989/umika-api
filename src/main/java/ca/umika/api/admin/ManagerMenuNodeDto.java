@@ -7,6 +7,7 @@ public record ManagerMenuNodeDto(
         UUID id,
         UUID parentId,
         String name,
+        String description,
         String code,
         String path,
         String component,

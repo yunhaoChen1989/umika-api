@@ -13,6 +13,13 @@ public class SystemMenuMapper {
                 entity.getId(),
                 entity.getParentId(),
                 entity.getName(),
+                null,
+                entity.getNameEn(),
+                entity.getNameZh(),
+                entity.getNameKo(),
+                entity.getDescriptionEn(),
+                entity.getDescriptionZh(),
+                entity.getDescriptionKo(),
                 entity.getCode(),
                 entity.getPath(),
                 entity.getComponent(),
@@ -33,7 +40,7 @@ public class SystemMenuMapper {
     }
 
     public void updateEntity(SystemMenuEntity entity, SystemMenuDto dto) {
-        apply(entity, dto.parentId(), dto.name(), dto.code(), dto.path(), dto.component(), dto.icon(), dto.menuType(), dto.sortOrder(), dto.isVisible(), dto.isEnabled());
+        apply(entity, dto.parentId(), dto.name(), dto.nameEn(), dto.nameZh(), dto.nameKo(), dto.descriptionEn(), dto.descriptionZh(), dto.descriptionKo(), dto.code(), dto.path(), dto.component(), dto.icon(), dto.menuType(), dto.sortOrder(), dto.isVisible(), dto.isEnabled());
     }
 
     public SystemMenuEntity toEntity(SystemMenuUpsertRequest request) {
@@ -43,13 +50,19 @@ public class SystemMenuMapper {
     }
 
     public void updateEntity(SystemMenuEntity entity, SystemMenuUpsertRequest request) {
-        apply(entity, request.parentId(), request.name(), request.code(), request.path(), request.component(), request.icon(), request.menuType(), request.sortOrder(), request.isVisible(), request.isEnabled());
+        apply(entity, request.parentId(), request.name(), request.nameEn(), request.nameZh(), request.nameKo(), request.descriptionEn(), request.descriptionZh(), request.descriptionKo(), request.code(), request.path(), request.component(), request.icon(), request.menuType(), request.sortOrder(), request.isVisible(), request.isEnabled());
     }
 
     private void apply(
             SystemMenuEntity entity,
             java.util.UUID parentId,
             String name,
+            String nameEn,
+            String nameZh,
+            String nameKo,
+            String descriptionEn,
+            String descriptionZh,
+            String descriptionKo,
             String code,
             String path,
             String component,
@@ -61,6 +74,12 @@ public class SystemMenuMapper {
     ) {
         entity.setParentId(parentId);
         entity.setName(name);
+        entity.setNameEn(nameEn);
+        entity.setNameZh(nameZh);
+        entity.setNameKo(nameKo);
+        entity.setDescriptionEn(descriptionEn);
+        entity.setDescriptionZh(descriptionZh);
+        entity.setDescriptionKo(descriptionKo);
         entity.setCode(code);
         entity.setPath(path);
         entity.setComponent(component);

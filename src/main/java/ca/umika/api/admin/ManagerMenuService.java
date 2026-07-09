@@ -40,7 +40,7 @@ public class ManagerMenuService {
         this.systemMenuRepository = systemMenuRepository;
     }
 
-    public List<ManagerMenuNodeDto> getMenus(Authentication authentication) {
+    public List<ManagerMenuNodeDto> getMenus(Authentication authentication, String locale) {
         if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
         }
@@ -88,7 +88,7 @@ public class ManagerMenuService {
                 .filter(menu -> Boolean.TRUE.equals(menu.getIsVisible()) || menu.getIsVisible() == null)
                 .toList();
 
-        return buildTree(menus);
+        return buildTree(menus, resolveLocale(locale));
     }
 
     private void includeWithAncestors(UUID menuId, Set<UUID> visibleMenuIds, Map<UUID, SystemMenuEntity> menuMap) {
@@ -104,10 +104,10 @@ public class ManagerMenuService {
         includeWithAncestors(menu.getParentId(), visibleMenuIds, menuMap);
     }
 
-    private List<ManagerMenuNodeDto> buildTree(List<SystemMenuEntity> menus) {
+    private List<ManagerMenuNodeDto> buildTree(List<SystemMenuEntity> menus, String locale) {
         Map<UUID, MenuNode> nodeMap = new LinkedHashMap<>();
         for (SystemMenuEntity menu : menus) {
-            nodeMap.put(menu.getId(), new MenuNode(toDto(menu)));
+            nodeMap.put(menu.getId(), new MenuNode(toDto(menu, locale)));
         }
 
         List<MenuNode> roots = new ArrayList<>();
@@ -132,6 +132,7 @@ public class ManagerMenuService {
                 menu.getId(),
                 menu.getParentId(),
                 menu.getName(),
+                null,
                 menu.getCode(),
                 menu.getPath(),
                 menu.getComponent(),
@@ -142,6 +143,63 @@ public class ManagerMenuService {
                 menu.getIsEnabled(),
                 List.of()
         );
+    }
+
+    private ManagerMenuNodeDto toDto(SystemMenuEntity menu, String locale) {
+        return new ManagerMenuNodeDto(
+                menu.getId(),
+                menu.getParentId(),
+                localizedName(menu, locale),
+                localizedDescription(menu, locale),
+                menu.getCode(),
+                menu.getPath(),
+                menu.getComponent(),
+                menu.getIcon(),
+                menu.getMenuType(),
+                menu.getSortOrder(),
+                menu.getIsVisible(),
+                menu.getIsEnabled(),
+                List.of()
+        );
+    }
+
+    private String localizedName(SystemMenuEntity menu, String locale) {
+        return switch (locale) {
+            case "zh" -> firstPresent(menu.getNameZh(), menu.getNameEn(), menu.getName());
+            case "ko" -> firstPresent(menu.getNameKo(), menu.getNameEn(), menu.getName());
+            default -> firstPresent(menu.getNameEn(), menu.getName());
+        };
+    }
+
+    private String localizedDescription(SystemMenuEntity menu, String locale) {
+        return switch (locale) {
+            case "zh" -> firstPresent(menu.getDescriptionZh(), menu.getDescriptionEn());
+            case "ko" -> firstPresent(menu.getDescriptionKo(), menu.getDescriptionEn());
+            default -> firstPresent(menu.getDescriptionEn());
+        };
+    }
+
+    private String resolveLocale(String locale) {
+        if (locale == null || locale.isBlank()) {
+            return "en";
+        }
+        String normalized = locale.trim().toLowerCase();
+        if (normalized.startsWith("zh")) {
+            return "zh";
+        }
+        if (normalized.startsWith("ko")) {
+            return "ko";
+        }
+        return "en";
+    }
+
+    private String firstPresent(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private static final class MenuNode {
@@ -157,6 +215,7 @@ public class ManagerMenuService {
                     menu.id(),
                     menu.parentId(),
                     menu.name(),
+                    menu.description(),
                     menu.code(),
                     menu.path(),
                     menu.component(),

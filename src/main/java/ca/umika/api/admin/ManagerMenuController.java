@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -19,7 +20,10 @@ public class ManagerMenuController {
     }
 
     @GetMapping("/menus")
-    public List<ManagerMenuNodeDto> menus(Authentication authentication) {
-        return service.getMenus(authentication);
+    public List<ManagerMenuNodeDto> menus(
+            Authentication authentication,
+            @RequestParam(required = false) String locale
+    ) {
+        return service.getMenus(authentication, locale);
     }
 }
