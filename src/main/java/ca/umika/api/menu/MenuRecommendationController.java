@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/menu-recommendations")
+@RequestMapping({"/api/v1/menu-recommendations", "/api/v1/manager/menu-recommendations"})
 @Tag(name = "MenuRecommendation")
 public class MenuRecommendationController {
 

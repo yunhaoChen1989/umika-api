@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/menu-catalog")
+@RequestMapping({"/api/v1/menu-catalog", "/api/v1/manager/menu-catalog"})
 @Tag(name = "MenuCatalog")
 public class MenuCatalogController {
 

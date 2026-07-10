@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/user-permissions")
+@RequestMapping({"/api/v1/user-permissions", "/api/v1/manager/user-permissions"})
 @Tag(name = "UserPermission")
 public class UserPermissionController {
 

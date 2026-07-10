@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/menu-categories")
+@RequestMapping({"/api/v1/menu-categories", "/api/v1/manager/menu-categories"})
 @Tag(name = "MenuCategory")
 public class MenuCategoryController {
 

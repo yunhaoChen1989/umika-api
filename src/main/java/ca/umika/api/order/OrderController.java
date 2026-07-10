@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/orders", "/api/orders"})
+@RequestMapping({"/api/v1/orders", "/api/v1/manager/orders", "/api/orders"})
 @Tag(name = "Order")
 public class OrderController {
 

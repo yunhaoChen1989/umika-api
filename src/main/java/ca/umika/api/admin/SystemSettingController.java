@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/system-settings")
+@RequestMapping({"/api/v1/system-settings", "/api/v1/manager/system-settings"})
 @Tag(name = "SystemSetting")
 public class SystemSettingController {
 

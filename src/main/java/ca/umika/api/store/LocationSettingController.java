@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/location-settings")
+@RequestMapping({"/api/v1/location-settings", "/api/v1/manager/location-settings"})
 @Tag(name = "LocationSetting")
 public class LocationSettingController {
 

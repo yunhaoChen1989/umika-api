@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/permission-codes")
+@RequestMapping({"/api/v1/permission-codes", "/api/v1/manager/permission-codes"})
 @Tag(name = "PermissionCode")
 public class PermissionCodeController {
 

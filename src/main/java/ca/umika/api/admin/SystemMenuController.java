@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.core.Authentication;
 
 @RestController
-@RequestMapping("/api/v1/admin/system-menus")
+@RequestMapping({"/api/v1/admin/system-menus", "/api/v1/manager/system-menus", "/api/v1/manager/admin/system-menus"})
 @Tag(name = "SystemMenu")
 public class SystemMenuController {
 

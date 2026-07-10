@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/menu-item-images")
+@RequestMapping({"/api/v1/menu-item-images", "/api/v1/manager/menu-item-images"})
 @Tag(name = "MenuItemImage")
 public class MenuItemImageController {
 

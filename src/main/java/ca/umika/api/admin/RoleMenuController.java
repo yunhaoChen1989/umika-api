@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/role-menus")
+@RequestMapping({"/api/v1/role-menus", "/api/v1/manager/role-menus"})
 @Tag(name = "RoleMenu")
 public class RoleMenuController {
 
