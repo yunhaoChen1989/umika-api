@@ -6,6 +6,7 @@ import ca.umika.api.common.web.ApiResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -57,6 +58,32 @@ public class SecurityConfig {
                                 "/uploads/**",
                                 "/api/v1/auth/**"
                         ).permitAll()
+                        .requestMatchers(
+                                "/api/v1/system-settings/**",
+                                "/api/v1/manager/system-settings/**"
+                        ).hasAnyRole("STAFF", "MANAGER", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/manager/menus").hasAnyRole("STAFF", "MANAGER", "ADMIN")
+                        .requestMatchers(
+                                "/api/v1/admin/**",
+                                "/api/v1/admin-activity-logs/**",
+                                "/api/v1/audit-logs/**",
+                                "/api/v1/permission-codes/**",
+                                "/api/v1/manager/permission-codes/**",
+                                "/api/v1/role-menus/**",
+                                "/api/v1/manager/role-menus/**",
+                                "/api/v1/role-permissions/**",
+                                "/api/v1/system-config-cache/**",
+                                "/api/v1/admin/system-menus/**",
+                                "/api/v1/manager/system-menus/**",
+                                "/api/v1/manager/admin/system-menus/**",
+                                "/api/v1/user-permissions/**",
+                                "/api/v1/manager/user-permissions/**",
+                                "/api/v1/roles/**",
+                                "/api/v1/manager/roles/**",
+                                "/api/v1/user-roles/**",
+                                "/api/v1/manager/user-roles/**"
+                        ).hasRole("ADMIN")
+                        .requestMatchers("/api/v1/manager/**").hasAnyRole("STAFF", "MANAGER", "ADMIN")
                         .requestMatchers( "/api/v1/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
