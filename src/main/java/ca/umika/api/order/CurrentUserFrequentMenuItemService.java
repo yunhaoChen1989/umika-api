@@ -13,11 +13,13 @@ import ca.umika.api.store.LocationRepository;
 import ca.umika.api.user.UserEntity;
 import ca.umika.api.user.UserRepository;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
@@ -79,16 +81,44 @@ public class CurrentUserFrequentMenuItemService {
                 "USER_HISTORY",
                 resolvedLimit
         );
-        if (!userItems.isEmpty()) {
-            return userItems;
+        List<CurrentUserFrequentMenuItemDto> result = new ArrayList<>(userItems);
+        if (result.size() >= resolvedLimit) {
+            return result;
         }
 
-        return resolveItems(
+        appendMissing(result, resolveItems(
                 orderItemRepository.findMostOrderedGlobal(locationId, COUNTED_STATUSES, queryLimit),
                 locationId,
                 "GLOBAL_POPULAR",
                 resolvedLimit
-        );
+        ), resolvedLimit);
+        if (result.size() >= resolvedLimit) {
+            return result;
+        }
+
+        appendMissing(result, recommendedItems(authentication, resolvedLimit, locationId), resolvedLimit);
+        return result;
+    }
+
+    private void appendMissing(
+            List<CurrentUserFrequentMenuItemDto> target,
+            List<CurrentUserFrequentMenuItemDto> candidates,
+            int limit
+    ) {
+        if (target.size() >= limit || candidates.isEmpty()) {
+            return;
+        }
+        Set<UUID> existingIds = target.stream()
+                .map(CurrentUserFrequentMenuItemDto::menuItemId)
+                .collect(Collectors.toSet());
+        for (CurrentUserFrequentMenuItemDto candidate : candidates) {
+            if (target.size() >= limit) {
+                return;
+            }
+            if (candidate.menuItemId() != null && existingIds.add(candidate.menuItemId())) {
+                target.add(candidate);
+            }
+        }
     }
 
     private List<CurrentUserFrequentMenuItemDto> recommendedItems(Authentication authentication, int limit, UUID locationId) {
