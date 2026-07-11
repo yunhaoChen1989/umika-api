@@ -59,6 +59,29 @@ public class SecurityConfig {
                                 "/api/v1/auth/**"
                         ).permitAll()
                         .requestMatchers(
+                                "/api/v1/cart/**"
+                        ).permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/locations/**",
+                                "/api/v1/menu-catalog/**",
+                                "/api/v1/menu-categories/**",
+                                "/api/v1/menu-items/**",
+                                "/api/v1/menu-item-images/**",
+                                "/api/v1/menu-item-options/**",
+                                "/api/v1/menu-recommendations/**",
+                                "/api/v1/business-settings/effective",
+                                "/api/v1/business-hours/**"
+                        ).permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/v1/orders/checkout",
+                                "/api/v1/orders/redemption-preview",
+                                "/api/orders/checkout",
+                                "/api/orders/redemption-preview",
+                                "/api/v1/payments/stripe/payment-intent",
+                                "/api/v1/payments/stripe/confirm",
+                                "/api/v1/payments/stripe/webhook"
+                        ).permitAll()
+                        .requestMatchers(
                                 "/api/v1/system-settings/**",
                                 "/api/v1/manager/system-settings/**"
                         ).hasAnyRole("STAFF", "MANAGER", "ADMIN")
@@ -84,7 +107,6 @@ public class SecurityConfig {
                                 "/api/v1/manager/user-roles/**"
                         ).hasRole("ADMIN")
                         .requestMatchers("/api/v1/manager/**").hasAnyRole("STAFF", "MANAGER", "ADMIN")
-                        .requestMatchers( "/api/v1/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
         return http.build();
