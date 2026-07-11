@@ -82,6 +82,10 @@ public class SecurityConfig {
                                 "/api/v1/payments/stripe/webhook"
                         ).permitAll()
                         .requestMatchers(
+                                "/api/v1/manager/order-notifications/ws",
+                                "/api/manager/order-notifications/ws"
+                        ).permitAll()
+                        .requestMatchers(
                                 "/api/v1/system-settings/**",
                                 "/api/v1/manager/system-settings/**"
                         ).hasAnyRole("STAFF", "MANAGER", "ADMIN")
