@@ -295,8 +295,16 @@ public class CartService {
         if (optionIds == null || optionIds.isEmpty()) {
             return List.of();
         }
-        List<MenuItemOptionEntity> options = menuItemOptionRepository.findByIdInAndItemIdAndIsActiveTrue(optionIds, menuItemId);
-        if (options.size() != optionIds.stream().distinct().count()) {
+        List<UUID> selectedOptionIds = optionIds.stream()
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+        if (selectedOptionIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<MenuItemOptionEntity> options = menuItemOptionRepository.findByIdInAndItemIdAndIsActiveTrue(selectedOptionIds, menuItemId);
+        if (options.size() != selectedOptionIds.size()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid menu item option");
         }
         return options.stream()
