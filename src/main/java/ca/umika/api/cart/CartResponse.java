@@ -12,6 +12,9 @@ public record CartResponse(
         UUID locationId,
         String status,
         BigDecimal subtotal,
+        UUID couponId,
+        String couponCode,
+        BigDecimal couponDiscount,
         List<CartItemResponse> items,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

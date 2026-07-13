@@ -1,6 +1,10 @@
 package ca.umika.api.cart;
 
 import ca.umika.api.common.web.ResourceNotFoundException;
+import ca.umika.api.coupon.ApplyCouponRequest;
+import ca.umika.api.coupon.CouponApplyResponse;
+import ca.umika.api.coupon.CouponCalculation;
+import ca.umika.api.coupon.CouponService;
 import ca.umika.api.menu.LocationMenuOverrideEntity;
 import ca.umika.api.menu.LocationMenuOverrideRepository;
 import ca.umika.api.menu.MenuCategoryEntity;
@@ -51,6 +55,7 @@ public class CartService {
     private final MenuItemImageRepository menuItemImageRepository;
     private final MenuItemOptionRepository menuItemOptionRepository;
     private final LocationMenuOverrideRepository overrideRepository;
+    private final CouponService couponService;
     private final ObjectMapper objectMapper;
 
     public CartService(
@@ -63,6 +68,7 @@ public class CartService {
             MenuItemImageRepository menuItemImageRepository,
             MenuItemOptionRepository menuItemOptionRepository,
             LocationMenuOverrideRepository overrideRepository,
+            CouponService couponService,
             ObjectMapper objectMapper
     ) {
         this.cartRepository = cartRepository;
@@ -74,6 +80,7 @@ public class CartService {
         this.menuItemImageRepository = menuItemImageRepository;
         this.menuItemOptionRepository = menuItemOptionRepository;
         this.overrideRepository = overrideRepository;
+        this.couponService = couponService;
         this.objectMapper = objectMapper;
     }
 
@@ -114,6 +121,7 @@ public class CartService {
                 existing.setQuantity(existing.getQuantity() + quantity);
                 cartItemRepository.save(existing);
                 recalculateSubtotal(cart);
+                refreshAppliedCoupon(cart);
                 return toResponse(cart);
             }
         }
@@ -128,6 +136,7 @@ public class CartService {
         item.setOptions(resolved.optionsJson());
         cartItemRepository.save(item);
         recalculateSubtotal(cart);
+        refreshAppliedCoupon(cart);
         return toResponse(cart);
     }
 
@@ -145,6 +154,7 @@ public class CartService {
         item.setQuantity(quantity);
         cartItemRepository.save(item);
         recalculateSubtotal(cart);
+        refreshAppliedCoupon(cart);
         return toResponse(cart);
     }
 
@@ -160,7 +170,35 @@ public class CartService {
 
         cartItemRepository.delete(item);
         recalculateSubtotal(cart);
+        refreshAppliedCoupon(cart);
         return toResponse(cart);
+    }
+
+    public CouponApplyResponse applyCoupon(Authentication authentication, UUID cartId, ApplyCouponRequest request, String sessionId) {
+        CartEntity cart = findCart(cartId);
+        assertOwner(authentication, sessionId, cart);
+        assertActive(cart);
+        if (request == null || request.couponCode() == null || request.couponCode().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "couponCode is required");
+        }
+        recalculateSubtotal(cart);
+        CouponCalculation calculation = couponService.calculate(request.couponCode(), cart.getLocationId(), cart.getUserId(), cart.getSubtotal());
+        cart.setCouponId(calculation.coupon().getId());
+        cart.setCouponCode(calculation.couponCode());
+        cart.setCouponDiscount(calculation.discountAmount());
+        cartRepository.save(cart);
+        return toCouponApplyResponse(cart, calculation.message());
+    }
+
+    public CouponApplyResponse removeCoupon(Authentication authentication, UUID cartId, String sessionId) {
+        CartEntity cart = findCart(cartId);
+        assertOwner(authentication, sessionId, cart);
+        assertActive(cart);
+        cart.setCouponId(null);
+        cart.setCouponCode(null);
+        cart.setCouponDiscount(BigDecimal.ZERO);
+        cartRepository.save(cart);
+        return toCouponApplyResponse(cart, "Coupon removed");
     }
 
     public void abandonCart(Authentication authentication, UUID cartId, String sessionId) {
@@ -252,15 +290,15 @@ public class CartService {
 
         MenuItemEntity item = menuItemRepository.findById(menuItemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Menu item not found: " + menuItemId));
-        if (item.getLocationId() != null && !item.getLocationId().equals(locationId)) {
+
+        MenuCategoryEntity category = categoryRepository.findById(item.getCategoryId())
+                .orElseThrow(() -> new ResourceNotFoundException("Menu category not found: " + item.getCategoryId()));
+        if (!isItemAllowedForCartLocation(item, category, locationId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Menu item does not belong to this cart location");
         }
         if (Boolean.TRUE.equals(item.getIsDeleted()) || Boolean.FALSE.equals(item.getIsActive()) || Boolean.FALSE.equals(item.getIsAvailable())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Menu item is not available");
         }
-
-        MenuCategoryEntity category = categoryRepository.findById(item.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Menu category not found: " + item.getCategoryId()));
         if (Boolean.TRUE.equals(category.getIsDeleted()) || Boolean.FALSE.equals(category.getIsActive())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Menu category is not available");
         }
@@ -289,6 +327,15 @@ public class CartService {
         String optionsJson = writeOptionsJson(optionSnapshots, note);
 
         return new ResolvedCartItem(itemName, imageUrl, basePrice.add(optionTotal), optionsJson);
+    }
+
+    private boolean isItemAllowedForCartLocation(MenuItemEntity item, MenuCategoryEntity category, UUID cartLocationId) {
+        if (item.getLocationId() == null || item.getLocationId().equals(cartLocationId)) {
+            return true;
+        }
+        // Legacy global seed rows can have a location_id while their category is global.
+        // Treat those as global so the cart accepts the same items the catalog displays.
+        return category.getLocationId() == null;
     }
 
     private List<OptionSnapshot> resolveOptions(UUID menuItemId, List<UUID> optionIds) {
@@ -332,6 +379,25 @@ public class CartService {
         cartRepository.save(cart);
     }
 
+    private void refreshAppliedCoupon(CartEntity cart) {
+        if (cart.getCouponCode() == null || cart.getCouponCode().isBlank()) {
+            cart.setCouponDiscount(BigDecimal.ZERO);
+            cartRepository.save(cart);
+            return;
+        }
+        try {
+            CouponCalculation calculation = couponService.calculate(cart.getCouponCode(), cart.getLocationId(), cart.getUserId(), cart.getSubtotal());
+            cart.setCouponId(calculation.coupon().getId());
+            cart.setCouponCode(calculation.couponCode());
+            cart.setCouponDiscount(calculation.discountAmount());
+        } catch (ResponseStatusException exception) {
+            cart.setCouponId(null);
+            cart.setCouponCode(null);
+            cart.setCouponDiscount(BigDecimal.ZERO);
+        }
+        cartRepository.save(cart);
+    }
+
     private CartResponse toResponse(CartEntity cart) {
         List<CartItemResponse> items = cartItemRepository.findByCart_Id(cart.getId()).stream()
                 .sorted(Comparator.comparing(CartItemEntity::getCreatedAt))
@@ -344,9 +410,26 @@ public class CartService {
                 cart.getLocationId(),
                 cart.getStatus(),
                 nullToZero(cart.getSubtotal()),
+                cart.getCouponId(),
+                cart.getCouponCode(),
+                nullToZero(cart.getCouponDiscount()),
                 items,
                 cart.getCreatedAt(),
                 cart.getUpdatedAt()
+        );
+    }
+
+    private CouponApplyResponse toCouponApplyResponse(CartEntity cart, String message) {
+        BigDecimal subtotal = nullToZero(cart.getSubtotal()).setScale(2, java.math.RoundingMode.HALF_UP);
+        BigDecimal couponDiscount = nullToZero(cart.getCouponDiscount()).setScale(2, java.math.RoundingMode.HALF_UP);
+        return new CouponApplyResponse(
+                cart.getId(),
+                cart.getCouponId(),
+                cart.getCouponCode(),
+                subtotal,
+                couponDiscount,
+                subtotal.subtract(couponDiscount).max(BigDecimal.ZERO).setScale(2, java.math.RoundingMode.HALF_UP),
+                message
         );
     }
 

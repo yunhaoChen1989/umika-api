@@ -9,6 +9,9 @@ import ca.umika.api.cart.CartItemEntity;
 import ca.umika.api.cart.CartItemRepository;
 import ca.umika.api.cart.CartRepository;
 import ca.umika.api.common.web.ResourceNotFoundException;
+import ca.umika.api.coupon.CouponCalculation;
+import ca.umika.api.coupon.CouponRedemptionEntity;
+import ca.umika.api.coupon.CouponService;
 import ca.umika.api.notification.OrderNotificationService;
 import ca.umika.api.referral.ReferralEntity;
 import ca.umika.api.referral.ReferralRepository;
@@ -88,6 +91,7 @@ public class OrderService {
     private final AccountRoleService accountRoleService;
     private final UserPermissionRepository userPermissionRepository;
     private final OrderNotificationService orderNotificationService;
+    private final CouponService couponService;
     private final ObjectMapper objectMapper;
     private final Clock clock;
 
@@ -111,6 +115,7 @@ public class OrderService {
             AccountRoleService accountRoleService,
             UserPermissionRepository userPermissionRepository,
             OrderNotificationService orderNotificationService,
+            CouponService couponService,
             ObjectMapper objectMapper
     ) {
         this.repository = repository;
@@ -132,6 +137,7 @@ public class OrderService {
         this.accountRoleService = accountRoleService;
         this.userPermissionRepository = userPermissionRepository;
         this.orderNotificationService = orderNotificationService;
+        this.couponService = couponService;
         this.objectMapper = objectMapper;
         this.clock = Clock.systemDefaultZone();
     }
@@ -318,12 +324,21 @@ public class OrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cart is empty");
         }
 
-        RedemptionCalculation redemption = calculateRedemption(cart, user.getId(), request.pointsToRedeem());
         BigDecimal subtotal = cartItems.stream()
                 .map(item -> nullToZero(item.getUnitPrice()).multiply(BigDecimal.valueOf(item.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
-        BigDecimal taxableAmount = subtotal.subtract(redemption.amount()).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+        CouponCalculation coupon = couponService.calculate(cart.getCouponCode(), cart.getLocationId(), user.getId(), subtotal);
+        cart.setCouponId(coupon.coupon() == null ? null : coupon.coupon().getId());
+        cart.setCouponCode(coupon.couponCode());
+        cart.setCouponDiscount(coupon.discountAmount());
+        cart.setSubtotal(subtotal);
+        cartRepository.save(cart);
+
+        BigDecimal subtotalAfterCoupon = subtotal.subtract(coupon.discountAmount()).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+        RedemptionCalculation redemption = calculateRedemption(cart, user.getId(), request.pointsToRedeem(), subtotalAfterCoupon);
+        BigDecimal totalDiscount = coupon.discountAmount().add(redemption.amount()).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal taxableAmount = subtotal.subtract(totalDiscount).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
         BigDecimal taxRate = settingDecimal(cart.getLocationId(), DEFAULT_TAX_RATE, BigDecimal.ZERO);
         BigDecimal taxAmount = taxableAmount.multiply(taxRate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
         BigDecimal tipAmount = normalizeTipAmount(request.tipAmount());
@@ -340,11 +355,12 @@ public class OrderService {
         order.setOrderType(orderType);
         order.setStatus(STATUS_PENDING);
         order.setSubtotal(subtotal);
-        order.setTotalDiscount(redemption.amount());
+        order.setTotalDiscount(totalDiscount);
         order.setTaxRate(taxRate);
         order.setTaxAmount(taxAmount);
         order.setTipAmount(tipAmount);
         order.setFinalTotal(finalTotal);
+        order.setCouponId(coupon.coupon() == null ? null : coupon.coupon().getId());
         order.setRequestedPickupTime(requestedPickupTime);
         order.setCustomerNote(trimToNull(request.customerNote()));
         order.setTaxExempt(false);
@@ -361,6 +377,22 @@ public class OrderService {
             item.setTotalPrice(nullToZero(cartItem.getUnitPrice()).multiply(BigDecimal.valueOf(cartItem.getQuantity())).setScale(2, RoundingMode.HALF_UP));
             item.setOptionSnapshot(readOptions(cartItem.getOptions()));
             orderItemRepository.save(item);
+        }
+
+        if (coupon.coupon() != null && coupon.discountAmount().compareTo(BigDecimal.ZERO) > 0) {
+            OrderDiscountEntity discount = new OrderDiscountEntity();
+            discount.setOrderId(order.getId());
+            discount.setDiscountType("COUPON");
+            discount.setReferenceId(coupon.coupon().getId());
+            discount.setAmount(coupon.discountAmount());
+            discount.setMetadata(Map.of(
+                    "couponCode", coupon.couponCode(),
+                    "discountType", coupon.coupon().getDiscountType(),
+                    "discountValue", coupon.coupon().getDiscountValue()
+            ));
+            orderDiscountRepository.save(discount);
+
+            CouponRedemptionEntity ignored = couponService.createRedemption(coupon, user.getId(), order.getId(), cart.getLocationId(), subtotal);
         }
 
         if (redemption.points() > 0) {
@@ -420,6 +452,7 @@ public class OrderService {
         createStatusHistory(order.getId(), oldStatus, newStatus, user.getId(), trimToNull(request.note()));
 
         if (STATUS_PAID.equals(newStatus)) {
+            couponService.markOrderRedemptionsApplied(order.getId());
             awardPaidOrderPoints(order);
             awardReferralFirstOrderIfEligible(order);
             refreshWallet(order.getUserId());
@@ -445,6 +478,7 @@ public class OrderService {
         createStatusHistory(order.getId(), oldStatus, newStatus, changedBy, trimToNull(note));
         log.info("order status changed from payment orderId={} orderNumber={} oldStatus={} newStatus={} changedBy={}",
                 order.getId(), order.getOrderNumber(), oldStatus, newStatus, changedBy);
+        couponService.markOrderRedemptionsApplied(order.getId());
         awardPaidOrderPoints(order);
         awardReferralFirstOrderIfEligible(order);
         refreshWallet(order.getUserId());
@@ -540,6 +574,10 @@ public class OrderService {
     }
 
     private RedemptionCalculation calculateRedemption(CartEntity cart, UUID userId, Integer requestedPoints) {
+        return calculateRedemption(cart, userId, requestedPoints, nullToZero(cart.getSubtotal()));
+    }
+
+    private RedemptionCalculation calculateRedemption(CartEntity cart, UUID userId, Integer requestedPoints, BigDecimal eligibleSubtotal) {
         int requested = requestedPoints == null ? 0 : requestedPoints;
         if (requested < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "pointsToRedeem cannot be negative");
@@ -551,7 +589,7 @@ public class OrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Point redemption value is not configured");
         }
 
-        BigDecimal subtotal = nullToZero(cart.getSubtotal()).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal subtotal = nullToZero(eligibleSubtotal).setScale(2, RoundingMode.HALF_UP);
         BigDecimal maxPercent = settingDecimal(cart.getLocationId(), MAX_REDEMPTION_PERCENT, BigDecimal.valueOf(50));
         BigDecimal maxCash = subtotal.multiply(maxPercent).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
         int maxByCash = maxCash.divide(pointValue, 0, RoundingMode.DOWN).intValue();

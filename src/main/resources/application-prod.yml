@@ -1,0 +1,69 @@
+spring:
+  application:
+    name: umika-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/umika}
+    username: ${DB_USERNAME:umikaSushi}
+    password: ${DB_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 9
+    locations: filesystem:/home/umikaSushi/SQL
+
+server:
+  port: ${SERVER_PORT:2026}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+
+logging:
+  file:
+    name: ${LOG_FILE:logs/umika-api.log}
+  logback:
+    rollingpolicy:
+      max-file-size: ${LOG_MAX_FILE_SIZE:10MB}
+      max-history: ${LOG_MAX_HISTORY:30}
+      total-size-cap: ${LOG_TOTAL_SIZE_CAP:500MB}
+  level:
+    ca.umika.api: ${APP_LOG_LEVEL:INFO}
+    org.springframework.security: INFO
+    org.hibernate.SQL: WARN
+
+jwt:
+  secret: ${JWT_SECRET}
+  expirationMs: 3600000
+
+stripe:
+  publishable-key: ${STRIPE_PUBLISHABLE_KEY:}
+  secret-key: ${STRIPE_SECRET_KEY}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET}
+  currency: ${STRIPE_CURRENCY:cad}
+
+google:
+  oauth:
+    client-id: ${GOOGLE_OAUTH_CLIENT_ID:395014484643-u08rnbc9um0khs2o49md9chm6mjq6up9.apps.googleusercontent.com}
+    callback-uri: ${GOOGLE_OAUTH_CALLBACK_URI:https://Umikasushi.ca/api/v1/auth/google}
+
+app:
+  public-base-url: ${APP_PUBLIC_BASE_URL:https://umikasushi.ca}
+  upload:
+    base-dir: /home/umika-api/uploads

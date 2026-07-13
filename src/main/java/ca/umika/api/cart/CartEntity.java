@@ -28,6 +28,15 @@ public class CartEntity extends BaseEntity {
     @Column(name = "subtotal")
     private BigDecimal subtotal = BigDecimal.ZERO;
 
+    @Column(name = "coupon_id")
+    private UUID couponId;
+
+    @Column(name = "coupon_code")
+    private String couponCode;
+
+    @Column(name = "coupon_discount")
+    private BigDecimal couponDiscount = BigDecimal.ZERO;
+
     // getters and setters
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -41,4 +50,10 @@ public class CartEntity extends BaseEntity {
     public void setStatus(String status) { this.status = status; }
     public BigDecimal getSubtotal() { return subtotal; }
     public void setSubtotal(BigDecimal subtotal) { this.subtotal = subtotal; }
+    public UUID getCouponId() { return couponId; }
+    public void setCouponId(UUID couponId) { this.couponId = couponId; }
+    public String getCouponCode() { return couponCode; }
+    public void setCouponCode(String couponCode) { this.couponCode = couponCode; }
+    public BigDecimal getCouponDiscount() { return couponDiscount; }
+    public void setCouponDiscount(BigDecimal couponDiscount) { this.couponDiscount = couponDiscount; }
 }

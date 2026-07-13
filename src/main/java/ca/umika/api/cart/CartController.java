@@ -1,5 +1,7 @@
 package ca.umika.api.cart;
 
+import ca.umika.api.coupon.ApplyCouponRequest;
+import ca.umika.api.coupon.CouponApplyResponse;
 import java.net.URI;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
@@ -71,6 +73,25 @@ public class CartController {
             @RequestParam(required = false) String sessionId
     ) {
         return cartService.deleteItem(authentication, cartId, itemId, sessionId);
+    }
+
+    @PostMapping("/{cartId}/coupon")
+    public CouponApplyResponse applyCoupon(
+            Authentication authentication,
+            @PathVariable UUID cartId,
+            @RequestBody ApplyCouponRequest request,
+            @RequestParam(required = false) String sessionId
+    ) {
+        return cartService.applyCoupon(authentication, cartId, request, sessionId);
+    }
+
+    @DeleteMapping("/{cartId}/coupon")
+    public CouponApplyResponse removeCoupon(
+            Authentication authentication,
+            @PathVariable UUID cartId,
+            @RequestParam(required = false) String sessionId
+    ) {
+        return cartService.removeCoupon(authentication, cartId, sessionId);
     }
 
     @DeleteMapping("/{cartId}")
