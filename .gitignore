@@ -12,7 +12,7 @@
 .idea/**/dictionaries
 .idea/**/shelf
 .idea/**
-
+src/main/resources/*.yml
 # AWS User-specific
 .idea/**/aws.xml
 
