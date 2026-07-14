@@ -30,8 +30,9 @@ public class BusinessHourMapper {
     public void updateEntity(BusinessHourEntity entity, BusinessHourDto dto) {
         entity.setLocationId(dto.locationId());
         entity.setDayOfWeek(dto.dayOfWeek());
-        entity.setOpenTime(dto.openTime());
-        entity.setCloseTime(dto.closeTime());
-        entity.setIsClosed(dto.isClosed());
+        boolean closed = Boolean.TRUE.equals(dto.isClosed());
+        entity.setOpenTime(closed ? null : dto.openTime());
+        entity.setCloseTime(closed ? null : dto.closeTime());
+        entity.setIsClosed(closed);
 }
 }
