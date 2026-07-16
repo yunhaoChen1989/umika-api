@@ -31,6 +31,7 @@ public class BusinessSettingService {
             definition("ORDER", "ORDER_DISCOUNT_PERCENT", "Order discount percent", "Default order-level discount percentage.", "decimal", "percent", "0"),
             definition("ORDER", "ORDER_DISCOUNT_AMOUNT", "Order discount amount", "Default fixed order-level discount amount.", "decimal", "currency", "0"),
             definition("ORDER", "MIN_PICKUP_TIME_MINUTES", "Minimum pickup time", "Minimum preparation time before a pickup order can be ready.", "integer", "minutes", "15"),
+            definition("ORDER", "ORDER_CUTOFF_BEFORE_CLOSE_MINUTES", "Order cutoff before closing", "Minutes before store closing when same-day pickup orders stop being accepted.", "integer", "minutes", "0"),
             definition("ORDER", "AUTO_ACCEPT_ORDERS", "Auto accept orders", "Automatically accept paid orders and move them into preparation.", "boolean", "boolean", "true"),
             definition("REWARD", "POINTS_PER_DOLLAR", "Points per dollar", "Loyalty points earned per paid dollar.", "decimal", "points", "1"),
             definition("REWARD", "POINT_VALUE_CENTS", "Point value", "Cash redemption value of one point, in cents.", "decimal", "cents", "5"),

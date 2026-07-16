@@ -21,6 +21,8 @@ import ca.umika.api.reward.RewardTransactionEntity;
 import ca.umika.api.reward.RewardTransactionRepository;
 import ca.umika.api.reward.RewardWalletEntity;
 import ca.umika.api.reward.RewardWalletRepository;
+import ca.umika.api.store.BusinessHourEntity;
+import ca.umika.api.store.BusinessHourRepository;
 import ca.umika.api.store.LocationRepository;
 import ca.umika.api.store.LocationSettingRepository;
 import ca.umika.api.user.UserEntity;
@@ -32,6 +34,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
@@ -42,6 +45,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -70,6 +74,7 @@ public class OrderService {
     private static final String REFERRAL_FIRST_ORDER_POINTS = "REFERRAL_FIRST_ORDER_POINTS";
     private static final String MIN_REFERRAL_ORDER_AMOUNT = "MIN_REFERRAL_ORDER_AMOUNT";
     private static final String MIN_PICKUP_TIME_MINUTES = "MIN_PICKUP_TIME_MINUTES";
+    private static final String ORDER_CUTOFF_BEFORE_CLOSE_MINUTES = "ORDER_CUTOFF_BEFORE_CLOSE_MINUTES";
     private static final String AUTO_ACCEPT_ORDERS = "AUTO_ACCEPT_ORDERS";
 
     private final OrderRepository repository;
@@ -82,6 +87,7 @@ public class OrderService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final LocationRepository locationRepository;
+    private final BusinessHourRepository businessHourRepository;
     private final SystemSettingRepository systemSettingRepository;
     private final LocationSettingRepository locationSettingRepository;
     private final RewardTransactionRepository rewardTransactionRepository;
@@ -94,6 +100,56 @@ public class OrderService {
     private final CouponService couponService;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+
+    @Autowired
+    public OrderService(
+            OrderRepository repository,
+            OrderItemRepository orderItemRepository,
+            OrderDiscountRepository orderDiscountRepository,
+            OrderTaxRepository orderTaxRepository,
+            OrderStatusHistoryRepository statusHistoryRepository,
+            CartRepository cartRepository,
+            CartItemRepository cartItemRepository,
+            UserRepository userRepository,
+            UserProfileRepository userProfileRepository,
+            LocationRepository locationRepository,
+            BusinessHourRepository businessHourRepository,
+            SystemSettingRepository systemSettingRepository,
+            LocationSettingRepository locationSettingRepository,
+            RewardTransactionRepository rewardTransactionRepository,
+            RewardRedemptionRepository rewardRedemptionRepository,
+            RewardWalletRepository rewardWalletRepository,
+            ReferralRepository referralRepository,
+            AccountRoleService accountRoleService,
+            UserPermissionRepository userPermissionRepository,
+            OrderNotificationService orderNotificationService,
+            CouponService couponService,
+            ObjectMapper objectMapper
+    ) {
+        this.repository = repository;
+        this.orderItemRepository = orderItemRepository;
+        this.orderDiscountRepository = orderDiscountRepository;
+        this.orderTaxRepository = orderTaxRepository;
+        this.statusHistoryRepository = statusHistoryRepository;
+        this.cartRepository = cartRepository;
+        this.cartItemRepository = cartItemRepository;
+        this.userRepository = userRepository;
+        this.userProfileRepository = userProfileRepository;
+        this.locationRepository = locationRepository;
+        this.businessHourRepository = businessHourRepository;
+        this.systemSettingRepository = systemSettingRepository;
+        this.locationSettingRepository = locationSettingRepository;
+        this.rewardTransactionRepository = rewardTransactionRepository;
+        this.rewardRedemptionRepository = rewardRedemptionRepository;
+        this.rewardWalletRepository = rewardWalletRepository;
+        this.referralRepository = referralRepository;
+        this.accountRoleService = accountRoleService;
+        this.userPermissionRepository = userPermissionRepository;
+        this.orderNotificationService = orderNotificationService;
+        this.couponService = couponService;
+        this.objectMapper = objectMapper;
+        this.clock = Clock.systemDefaultZone();
+    }
 
     public OrderService(
             OrderRepository repository,
@@ -118,28 +174,30 @@ public class OrderService {
             CouponService couponService,
             ObjectMapper objectMapper
     ) {
-        this.repository = repository;
-        this.orderItemRepository = orderItemRepository;
-        this.orderDiscountRepository = orderDiscountRepository;
-        this.orderTaxRepository = orderTaxRepository;
-        this.statusHistoryRepository = statusHistoryRepository;
-        this.cartRepository = cartRepository;
-        this.cartItemRepository = cartItemRepository;
-        this.userRepository = userRepository;
-        this.userProfileRepository = userProfileRepository;
-        this.locationRepository = locationRepository;
-        this.systemSettingRepository = systemSettingRepository;
-        this.locationSettingRepository = locationSettingRepository;
-        this.rewardTransactionRepository = rewardTransactionRepository;
-        this.rewardRedemptionRepository = rewardRedemptionRepository;
-        this.rewardWalletRepository = rewardWalletRepository;
-        this.referralRepository = referralRepository;
-        this.accountRoleService = accountRoleService;
-        this.userPermissionRepository = userPermissionRepository;
-        this.orderNotificationService = orderNotificationService;
-        this.couponService = couponService;
-        this.objectMapper = objectMapper;
-        this.clock = Clock.systemDefaultZone();
+        this(
+                repository,
+                orderItemRepository,
+                orderDiscountRepository,
+                orderTaxRepository,
+                statusHistoryRepository,
+                cartRepository,
+                cartItemRepository,
+                userRepository,
+                userProfileRepository,
+                locationRepository,
+                null,
+                systemSettingRepository,
+                locationSettingRepository,
+                rewardTransactionRepository,
+                rewardRedemptionRepository,
+                rewardWalletRepository,
+                referralRepository,
+                accountRoleService,
+                userPermissionRepository,
+                orderNotificationService,
+                couponService,
+                objectMapper
+        );
     }
 
     @Transactional(readOnly = true)
@@ -652,7 +710,10 @@ public class OrderService {
         if (REFERRAL_FIRST_ORDER_POINTS.equals(key) || MIN_REFERRAL_ORDER_AMOUNT.equals(key)) {
             return "REFERRAL";
         }
-        if (DEFAULT_TAX_RATE.equals(key) || MIN_PICKUP_TIME_MINUTES.equals(key) || AUTO_ACCEPT_ORDERS.equals(key)) {
+        if (DEFAULT_TAX_RATE.equals(key)
+                || MIN_PICKUP_TIME_MINUTES.equals(key)
+                || ORDER_CUTOFF_BEFORE_CLOSE_MINUTES.equals(key)
+                || AUTO_ACCEPT_ORDERS.equals(key)) {
             return "ORDER";
         }
         return "REWARD";
@@ -889,7 +950,43 @@ public class OrderService {
         if (pickupTime.isBefore(earliestPickupTime)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "requestedPickupTime must be at least " + minimumMinutes + " minutes from now");
         }
+        validatePickupBeforeClosingCutoff(locationId, pickupTime);
         return pickupTime;
+    }
+
+    private void validatePickupBeforeClosingCutoff(UUID locationId, LocalDateTime pickupTime) {
+        int cutoffMinutes = settingDecimal(locationId, ORDER_CUTOFF_BEFORE_CLOSE_MINUTES, BigDecimal.ZERO)
+                .setScale(0, RoundingMode.CEILING)
+                .intValue();
+        if (cutoffMinutes <= 0) {
+            return;
+        }
+        if (businessHourRepository == null) {
+            return;
+        }
+
+        LocalDate today = LocalDate.now(clock);
+        if (!pickupTime.toLocalDate().isEqual(today)) {
+            return;
+        }
+
+        short dayOfWeek = toBusinessDayOfWeek(pickupTime);
+        BusinessHourEntity hours = businessHourRepository.findByLocationIdAndDayOfWeek(locationId, dayOfWeek).orElse(null);
+        if (hours == null) {
+            return;
+        }
+        if (Boolean.TRUE.equals(hours.getIsClosed()) || hours.getCloseTime() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The store is closing, you can only order for tomorrow");
+        }
+
+        LocalDateTime closingCutoff = LocalDateTime.of(pickupTime.toLocalDate(), hours.getCloseTime()).minusMinutes(cutoffMinutes);
+        if (!pickupTime.isBefore(closingCutoff)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The store is closing, you can only order for tomorrow");
+        }
+    }
+
+    private short toBusinessDayOfWeek(LocalDateTime dateTime) {
+        return (short) (dateTime.getDayOfWeek().getValue() % 7);
     }
 
     private LocalDateTime resolveManagerRequestedPickupTime(String orderType, LocalDateTime requestedPickupTime) {
