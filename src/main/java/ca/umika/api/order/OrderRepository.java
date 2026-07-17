@@ -5,8 +5,9 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface OrderRepository extends JpaRepository<OrderEntity, UUID> {
+public interface OrderRepository extends JpaRepository<OrderEntity, UUID>, JpaSpecificationExecutor<OrderEntity> {
     Page<OrderEntity> findByUserId(UUID userId, Pageable pageable);
     Page<OrderEntity> findByUserIdAndStatusIgnoreCase(UUID userId, String status, Pageable pageable);
     Page<OrderEntity> findByUserIdAndLocationId(UUID userId, UUID locationId, Pageable pageable);

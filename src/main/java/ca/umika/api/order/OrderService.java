@@ -31,12 +31,19 @@ import ca.umika.api.user.UserProfileRepository;
 import ca.umika.api.user.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +55,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -201,60 +209,43 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public Page<OrderResponse> findAll(Authentication authentication, Pageable pageable, String userEmail, String email, UUID locationId, String status) {
+    public Page<OrderResponse> findAll(
+            Authentication authentication,
+            Pageable pageable,
+            String userEmail,
+            String email,
+            String customerName,
+            String phone,
+            String notes,
+            LocalDate orderDate,
+            LocalDate orderDateFrom,
+            LocalDate orderDateTo,
+            UUID locationId,
+            String status
+    ) {
         UserEntity user = resolveUser(authentication);
         String searchEmail = normalizeSearchEmail(userEmail, email);
         String normalizedStatus = normalizeOptionalStatus(status);
+        DateRange dateRange = resolveDateRange(orderDate, orderDateFrom, orderDateTo);
         if (locationId != null) {
             ensureLocationExists(locationId);
         }
         if (isAdmin(user.getId())) {
-            return findAdminOrders(pageable, searchEmail, locationId, normalizedStatus);
+            return searchOrders(pageable, null, null, locationId, normalizedStatus, searchEmail, customerName, phone, notes, dateRange);
         }
 
         List<UserPermissionEntity> permissions = userPermissionRepository
                 .findByUserIdAndPermissionCodeIgnoreCaseAndIsGrantedTrue(user.getId(), ORDER_MANAGE_PERMISSION);
         if (!permissions.isEmpty()) {
-            return findManagerOrders(user, permissions, pageable, searchEmail, locationId, normalizedStatus);
+            return findManagerOrders(user, permissions, pageable, searchEmail, customerName, phone, notes, dateRange, locationId, normalizedStatus);
         }
         if (isStoreRole(user.getId()) && user.getLocationId() != null) {
-            return findStoreRoleOrders(user, pageable, searchEmail, locationId, normalizedStatus);
+            return findStoreRoleOrders(user, pageable, searchEmail, customerName, phone, notes, dateRange, locationId, normalizedStatus);
         }
         if (searchEmail != null && !user.getEmail().equalsIgnoreCase(searchEmail)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Cannot view another user's order history");
         }
-        if (locationId != null) {
-            return (normalizedStatus == null
-                    ? repository.findByUserIdAndLocationId(user.getId(), locationId, pageable)
-                    : repository.findByUserIdAndLocationIdAndStatusIgnoreCase(user.getId(), locationId, normalizedStatus, pageable))
-                    .map(this::toResponse);
-        }
-        return (normalizedStatus == null
-                ? repository.findByUserId(user.getId(), pageable)
-                : repository.findByUserIdAndStatusIgnoreCase(user.getId(), normalizedStatus, pageable))
-                .map(this::toResponse);
-    }
-
-    private Page<OrderResponse> findAdminOrders(Pageable pageable, String userEmail, UUID locationId, String status) {
-        if (userEmail == null || userEmail.isBlank()) {
-            if (locationId != null) {
-                return (status == null
-                        ? repository.findByLocationId(locationId, pageable)
-                        : repository.findByLocationIdAndStatusIgnoreCase(locationId, status, pageable))
-                        .map(this::toResponse);
-            }
-            return (status == null ? repository.findAll(pageable) : repository.findByStatusIgnoreCase(status, pageable))
-                    .map(this::toResponse);
-        }
-        return userRepository.findByEmail(userEmail)
-                .map(targetUser -> locationId == null
-                        ? (status == null
-                                ? repository.findByUserId(targetUser.getId(), pageable)
-                                : repository.findByUserIdAndStatusIgnoreCase(targetUser.getId(), status, pageable)).map(this::toResponse)
-                        : (status == null
-                                ? repository.findByUserIdAndLocationId(targetUser.getId(), locationId, pageable)
-                                : repository.findByUserIdAndLocationIdAndStatusIgnoreCase(targetUser.getId(), locationId, status, pageable)).map(this::toResponse))
-                .orElseGet(() -> Page.empty(pageable));
+        return searchOrders(pageable, user.getId(), null, locationId, normalizedStatus, searchEmail, customerName, phone, notes, dateRange);
     }
 
     private Page<OrderResponse> findManagerOrders(
@@ -262,29 +253,15 @@ public class OrderService {
             List<UserPermissionEntity> permissions,
             Pageable pageable,
             String userEmail,
+            String customerName,
+            String phone,
+            String notes,
+            DateRange dateRange,
             UUID locationId,
             String status
     ) {
         if (permissions.stream().anyMatch(permission -> permission.getLocationId() == null)) {
-            if (userEmail == null || userEmail.isBlank()) {
-                if (locationId != null) {
-                    return (status == null
-                            ? repository.findByLocationId(locationId, pageable)
-                            : repository.findByLocationIdAndStatusIgnoreCase(locationId, status, pageable))
-                            .map(this::toResponse);
-                }
-                return (status == null ? repository.findAll(pageable) : repository.findByStatusIgnoreCase(status, pageable))
-                        .map(this::toResponse);
-            }
-            return userRepository.findByEmail(userEmail)
-                    .map(targetUser -> locationId == null
-                            ? (status == null
-                                    ? repository.findByUserId(targetUser.getId(), pageable)
-                                    : repository.findByUserIdAndStatusIgnoreCase(targetUser.getId(), status, pageable)).map(this::toResponse)
-                            : (status == null
-                                    ? repository.findByUserIdAndLocationId(targetUser.getId(), locationId, pageable)
-                                    : repository.findByUserIdAndLocationIdAndStatusIgnoreCase(targetUser.getId(), locationId, status, pageable)).map(this::toResponse))
-                    .orElseGet(() -> Page.empty(pageable));
+            return searchOrders(pageable, null, null, locationId, status, userEmail, customerName, phone, notes, dateRange);
         }
 
         List<UUID> locationIds = permissions.stream()
@@ -301,40 +278,150 @@ public class OrderService {
         List<UUID> allowedLocationIds = locationIds;
         if (allowedLocationIds.isEmpty()) {
             return locationId == null
-                    ? (status == null
-                            ? repository.findByUserId(manager.getId(), pageable)
-                            : repository.findByUserIdAndStatusIgnoreCase(manager.getId(), status, pageable)).map(this::toResponse)
+                    ? searchOrders(pageable, manager.getId(), null, null, status, userEmail, customerName, phone, notes, dateRange)
                     : Page.empty(pageable);
         }
-        if (userEmail == null || userEmail.isBlank()) {
-            return (status == null
-                    ? repository.findByLocationIdIn(allowedLocationIds, pageable)
-                    : repository.findByLocationIdInAndStatusIgnoreCase(allowedLocationIds, status, pageable))
-                    .map(this::toResponse);
-        }
-        return userRepository.findByEmail(userEmail)
-                .map(targetUser -> (status == null
-                        ? repository.findByUserIdAndLocationIdIn(targetUser.getId(), allowedLocationIds, pageable)
-                        : repository.findByUserIdAndLocationIdInAndStatusIgnoreCase(targetUser.getId(), allowedLocationIds, status, pageable)).map(this::toResponse))
-                .orElseGet(() -> Page.empty(pageable));
+        return searchOrders(pageable, null, allowedLocationIds, null, status, userEmail, customerName, phone, notes, dateRange);
     }
 
-    private Page<OrderResponse> findStoreRoleOrders(UserEntity storeUser, Pageable pageable, String userEmail, UUID locationId, String status) {
+    private Page<OrderResponse> findStoreRoleOrders(
+            UserEntity storeUser,
+            Pageable pageable,
+            String userEmail,
+            String customerName,
+            String phone,
+            String notes,
+            DateRange dateRange,
+            UUID locationId,
+            String status
+    ) {
         if (locationId != null && !locationId.equals(storeUser.getLocationId())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing order permission for location");
         }
-        List<UUID> locationIds = List.of(storeUser.getLocationId());
-        if (userEmail == null || userEmail.isBlank()) {
-            return (status == null
-                    ? repository.findByLocationIdIn(locationIds, pageable)
-                    : repository.findByLocationIdInAndStatusIgnoreCase(locationIds, status, pageable))
-                    .map(this::toResponse);
-        }
-        return userRepository.findByEmail(userEmail)
-                .map(targetUser -> (status == null
-                        ? repository.findByUserIdAndLocationIdIn(targetUser.getId(), locationIds, pageable)
-                        : repository.findByUserIdAndLocationIdInAndStatusIgnoreCase(targetUser.getId(), locationIds, status, pageable)).map(this::toResponse))
-                .orElseGet(() -> Page.empty(pageable));
+        return searchOrders(pageable, null, List.of(storeUser.getLocationId()), null, status, userEmail, customerName, phone, notes, dateRange);
+    }
+
+    private Page<OrderResponse> searchOrders(
+            Pageable pageable,
+            UUID scopeUserId,
+            List<UUID> scopeLocationIds,
+            UUID locationId,
+            String status,
+            String email,
+            String customerName,
+            String phone,
+            String notes,
+            DateRange dateRange
+    ) {
+        Specification<OrderEntity> specification = buildOrderSearchSpecification(
+                scopeUserId,
+                scopeLocationIds,
+                locationId,
+                status,
+                blankToNull(email),
+                blankToNull(customerName),
+                blankToNull(phone),
+                blankToNull(notes),
+                dateRange.from(),
+                dateRange.to()
+        );
+        return repository.findAll(specification, pageable).map(this::toResponse);
+    }
+
+    private Specification<OrderEntity> buildOrderSearchSpecification(
+            UUID scopeUserId,
+            List<UUID> scopeLocationIds,
+            UUID locationId,
+            String status,
+            String email,
+            String customerName,
+            String phone,
+            String notes,
+            LocalDateTime createdFrom,
+            LocalDateTime createdTo
+    ) {
+        return (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (scopeUserId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("userId"), scopeUserId));
+            }
+            if (scopeLocationIds != null) {
+                if (scopeLocationIds.isEmpty()) {
+                    predicates.add(criteriaBuilder.disjunction());
+                } else {
+                    predicates.add(root.get("locationId").in(scopeLocationIds));
+                }
+            }
+            if (locationId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("locationId"), locationId));
+            }
+            if (status != null) {
+                predicates.add(criteriaBuilder.equal(criteriaBuilder.upper(root.get("status")), status.toUpperCase()));
+            }
+            if (email != null) {
+                predicates.add(userFieldMatches(root, query, criteriaBuilder, "email", email));
+            }
+            if (phone != null) {
+                predicates.add(userFieldMatches(root, query, criteriaBuilder, "phone", phone));
+            }
+            if (customerName != null) {
+                predicates.add(customerNameMatches(root, query, criteriaBuilder, customerName));
+            }
+            if (notes != null) {
+                String pattern = containsPattern(notes);
+                predicates.add(criteriaBuilder.or(
+                        criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("customerNote"), "")), pattern),
+                        criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("internalNote"), "")), pattern)
+                ));
+            }
+            if (createdFrom != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), createdFrom));
+            }
+            if (createdTo != null) {
+                predicates.add(criteriaBuilder.lessThan(root.get("createdAt"), createdTo));
+            }
+            return criteriaBuilder.and(predicates.toArray(Predicate[]::new));
+        };
+    }
+
+    private Predicate userFieldMatches(
+            Root<OrderEntity> orderRoot,
+            CriteriaQuery<?> query,
+            CriteriaBuilder criteriaBuilder,
+            String fieldName,
+            String value
+    ) {
+        Subquery<UUID> subquery = query.subquery(UUID.class);
+        Root<UserEntity> userRoot = subquery.from(UserEntity.class);
+        subquery.select(userRoot.get("id"));
+        subquery.where(
+                criteriaBuilder.equal(userRoot.get("id"), orderRoot.get("userId")),
+                criteriaBuilder.like(criteriaBuilder.lower(userRoot.get(fieldName)), containsPattern(value))
+        );
+        return criteriaBuilder.exists(subquery);
+    }
+
+    private Predicate customerNameMatches(
+            Root<OrderEntity> orderRoot,
+            CriteriaQuery<?> query,
+            CriteriaBuilder criteriaBuilder,
+            String value
+    ) {
+        Subquery<UUID> subquery = query.subquery(UUID.class);
+        Root<UserProfileEntity> profileRoot = subquery.from(UserProfileEntity.class);
+        Expression<String> firstName = criteriaBuilder.coalesce(profileRoot.get("firstName"), "");
+        Expression<String> lastName = criteriaBuilder.coalesce(profileRoot.get("lastName"), "");
+        Expression<String> fullName = criteriaBuilder.lower(criteriaBuilder.concat(criteriaBuilder.concat(firstName, " "), lastName));
+        subquery.select(profileRoot.get("userId"));
+        subquery.where(
+                criteriaBuilder.equal(profileRoot.get("userId"), orderRoot.get("userId")),
+                criteriaBuilder.like(fullName, containsPattern(value))
+        );
+        return criteriaBuilder.exists(subquery);
+    }
+
+    private String containsPattern(String value) {
+        return "%" + value.toLowerCase() + "%";
     }
 
     private String normalizeOptionalStatus(String status) {
@@ -345,13 +432,37 @@ public class OrderService {
     }
 
     private String normalizeSearchEmail(String userEmail, String email) {
-        if (userEmail != null && !userEmail.isBlank()) {
-            return userEmail.trim();
+        String normalizedUserEmail = blankToNull(userEmail);
+        String normalizedEmail = blankToNull(email);
+        if (normalizedUserEmail != null && normalizedEmail != null && !normalizedUserEmail.equalsIgnoreCase(normalizedEmail)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Use either email or userEmail, not both with different values");
         }
-        if (email != null && !email.isBlank()) {
-            return email.trim();
+        if (normalizedEmail != null) {
+            return normalizedEmail;
         }
-        return null;
+        return normalizedUserEmail;
+    }
+
+    private DateRange resolveDateRange(LocalDate orderDate, LocalDate orderDateFrom, LocalDate orderDateTo) {
+        if (orderDate != null && (orderDateFrom != null || orderDateTo != null)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Use either orderDate or orderDateFrom/orderDateTo");
+        }
+        if (orderDate != null) {
+            return new DateRange(orderDate.atStartOfDay(), orderDate.plusDays(1).atStartOfDay());
+        }
+        LocalDateTime from = orderDateFrom == null ? null : orderDateFrom.atStartOfDay();
+        LocalDateTime to = orderDateTo == null ? null : orderDateTo.plusDays(1).atStartOfDay();
+        if (from != null && to != null && !from.isBefore(to)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "orderDateFrom must be before or equal to orderDateTo");
+        }
+        return new DateRange(from, to);
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private record DateRange(LocalDateTime from, LocalDateTime to) {
     }
 
     @Transactional(readOnly = true)

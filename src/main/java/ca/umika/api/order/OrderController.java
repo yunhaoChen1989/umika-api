@@ -2,9 +2,11 @@ package ca.umika.api.order;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -34,10 +36,16 @@ public class OrderController {
             Pageable pageable,
             @RequestParam(required = false) String userEmail,
             @RequestParam(required = false) String email,
+            @RequestParam(required = false) String customerName,
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) String notes,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate orderDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate orderDateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate orderDateTo,
             @RequestParam(required = false) UUID locationId,
             @RequestParam(required = false) String status
     ) {
-        return service.findAll(authentication, pageable, userEmail, email, locationId, status);
+        return service.findAll(authentication, pageable, userEmail, email, customerName, phone, notes, orderDate, orderDateFrom, orderDateTo, locationId, status);
     }
 
     @GetMapping("/{id}")
