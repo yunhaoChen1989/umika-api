@@ -606,6 +606,9 @@ public class OrderService {
         assertCanManage(user, order.getLocationId());
 
         String newStatus = normalizeStatus(request.status());
+        if (Set.of("PARTIALLY_REFUNDED", "REFUNDED").contains(newStatus)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Refund status can only be changed by the payment refund API");
+        }
         String oldStatus = order.getStatus();
         boolean pickupTimeChanged = request.requestedPickupTime() != null
                 && (order.getRequestedPickupTime() == null || !request.requestedPickupTime().isEqual(order.getRequestedPickupTime()));
@@ -656,6 +659,36 @@ public class OrderService {
         return response;
     }
 
+    public OrderResponse markRefundedFromPayment(
+            UUID id,
+            UUID changedBy,
+            boolean fullyRefunded,
+            String reason,
+            BigDecimal refundAmount
+    ) {
+        OrderEntity order = findOrder(id);
+        String oldStatus = order.getStatus();
+        String newStatus = fullyRefunded ? "REFUNDED" : "PARTIALLY_REFUNDED";
+        order.setStatus(newStatus);
+        order = repository.save(order);
+
+        String refundNote = "Stripe refund " + nullToZero(refundAmount).setScale(2, RoundingMode.HALF_UP);
+        if (trimToNull(reason) != null) {
+            refundNote += ": " + reason.trim();
+        }
+        createStatusHistory(order.getId(), oldStatus, newStatus, changedBy, refundNote);
+
+        if (fullyRefunded) {
+            reverseRewardsForFullyRefundedOrder(order);
+            couponService.markOrderRedemptionsRefunded(order.getId());
+        }
+        log.info("order refund applied orderId={} orderNumber={} oldStatus={} newStatus={} amount={} changedBy={}",
+                order.getId(), order.getOrderNumber(), oldStatus, newStatus, refundAmount, changedBy);
+        OrderResponse response = toResponse(order);
+        orderNotificationService.notifyStatusUpdated(response);
+        return response;
+    }
+
     public void delete(Authentication authentication, UUID id) {
         OrderEntity order = findOrder(id);
         UserEntity user = resolveUser(authentication);
@@ -681,7 +714,10 @@ public class OrderService {
 
     private void awardReferralFirstOrderIfEligible(OrderEntity order) {
         ReferralEntity referral = referralRepository.findFirstByReferredUserId(order.getUserId()).orElse(null);
-        if (referral == null || "REWARDED".equalsIgnoreCase(referral.getStatus()) || "INVALID".equalsIgnoreCase(referral.getStatus())) {
+        if (referral == null
+                || "REWARDED".equalsIgnoreCase(referral.getStatus())
+                || "INVALID".equalsIgnoreCase(referral.getStatus())
+                || "REVERSED".equalsIgnoreCase(referral.getStatus())) {
             return;
         }
         long paidOrderCount = repository.countByUserIdAndStatusIn(
@@ -713,6 +749,58 @@ public class OrderService {
             refreshWallet(referral.getReferrerId());
             log.info("referral first order points awarded orderId={} referralId={} referrerId={} referredUserId={} points={}",
                     order.getId(), referral.getId(), referral.getReferrerId(), order.getUserId(), points);
+        }
+    }
+
+    private void reverseRewardsForFullyRefundedOrder(OrderEntity order) {
+        int earnedPoints = rewardTransactionRepository.sumPointsByUserIdAndOrderIdAndType(
+                order.getUserId(), order.getId(), "ORDER_EARN");
+        if (earnedPoints > 0 && !rewardTransactionRepository.existsByUserIdAndOrderIdAndType(
+                order.getUserId(), order.getId(), "REFUND_ORDER_EARN_REVERSAL")) {
+            createRewardTransaction(
+                    order.getUserId(),
+                    order.getId(),
+                    "REFUND_ORDER_EARN_REVERSAL",
+                    -earnedPoints,
+                    "REFUND",
+                    "Reversed earned points for refunded order " + order.getOrderNumber()
+            );
+        }
+
+        int redeemedPoints = rewardTransactionRepository.sumPointsByUserIdAndOrderIdAndType(
+                order.getUserId(), order.getId(), "REDEEM");
+        if (redeemedPoints < 0 && !rewardTransactionRepository.existsByUserIdAndOrderIdAndType(
+                order.getUserId(), order.getId(), "REFUND_REDEMPTION_RESTORE")) {
+            createRewardTransaction(
+                    order.getUserId(),
+                    order.getId(),
+                    "REFUND_REDEMPTION_RESTORE",
+                    -redeemedPoints,
+                    "REFUND",
+                    "Restored redeemed points for refunded order " + order.getOrderNumber()
+            );
+        }
+        refreshWallet(order.getUserId());
+
+        ReferralEntity referral = referralRepository.findFirstByReferredUserId(order.getUserId()).orElse(null);
+        if (referral == null) {
+            return;
+        }
+        int referralPoints = rewardTransactionRepository.sumPointsByUserIdAndOrderIdAndType(
+                referral.getReferrerId(), order.getId(), "REFERRAL_FIRST_ORDER");
+        if (referralPoints > 0 && !rewardTransactionRepository.existsByUserIdAndOrderIdAndType(
+                referral.getReferrerId(), order.getId(), "REFUND_REFERRAL_REVERSAL")) {
+            createRewardTransaction(
+                    referral.getReferrerId(),
+                    order.getId(),
+                    "REFUND_REFERRAL_REVERSAL",
+                    -referralPoints,
+                    "REFUND",
+                    "Reversed referral reward for refunded order " + order.getOrderNumber()
+            );
+            referral.setStatus("REVERSED");
+            referralRepository.save(referral);
+            refreshWallet(referral.getReferrerId());
         }
     }
 
@@ -1109,14 +1197,16 @@ public class OrderService {
 
     private String normalizeStatus(String status) {
         String normalized = status == null || status.isBlank() ? "" : status.trim().toUpperCase();
-        if (!Set.of("PENDING", "PAID", "PREPARING", "READY", "COMPLETED", "CANCELLED").contains(normalized)) {
+        if (!Set.of("PENDING", "PAID", "PREPARING", "READY", "COMPLETED", "CANCELLED", "PARTIALLY_REFUNDED", "REFUNDED").contains(normalized)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid order status");
         }
         return normalized;
     }
 
     private boolean isPaidOrAcceptedStatus(String status) {
-        return status != null && Set.of("PAID", "PREPARING", "READY", "COMPLETED").contains(status.trim().toUpperCase());
+        return status != null && Set.of(
+                "PAID", "PREPARING", "READY", "COMPLETED", "PARTIALLY_REFUNDED", "REFUNDED"
+        ).contains(status.trim().toUpperCase());
     }
 
     private String trimToNull(String value) {

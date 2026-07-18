@@ -14,9 +14,12 @@ public class PaymentRefundMapper {
                 entity.getPaymentTransactionId(),
                 entity.getOrderId(),
                 entity.getUserId(),
+                entity.getRequestedBy(),
                 entity.getAmount(),
                 entity.getReason(),
                 entity.getProviderRefundId(),
+                entity.getIdempotencyKey(),
+                entity.getFailureReason(),
                 entity.getStatus(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
@@ -33,9 +36,12 @@ public class PaymentRefundMapper {
         entity.setPaymentTransactionId(dto.paymentTransactionId());
         entity.setOrderId(dto.orderId());
         entity.setUserId(dto.userId());
+        entity.setRequestedBy(dto.requestedBy());
         entity.setAmount(dto.amount());
         entity.setReason(dto.reason());
         entity.setProviderRefundId(dto.providerRefundId());
+        entity.setIdempotencyKey(dto.idempotencyKey());
+        entity.setFailureReason(dto.failureReason());
         entity.setStatus(dto.status());
 }
 }

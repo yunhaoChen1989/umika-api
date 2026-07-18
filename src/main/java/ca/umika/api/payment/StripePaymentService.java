@@ -12,6 +12,7 @@ import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Event;
 import com.stripe.model.PaymentIntent;
+import com.stripe.model.Refund;
 import com.stripe.model.StripeObject;
 import com.stripe.net.RequestOptions;
 import com.stripe.net.Webhook;
@@ -48,6 +49,7 @@ public class StripePaymentService {
     private final PaymentTransactionRepository transactionRepository;
     private final PaymentAttemptRepository attemptRepository;
     private final PaymentWebhookLogRepository webhookLogRepository;
+    private final PaymentRefundService paymentRefundService;
     private final ObjectMapper objectMapper;
 
     public StripePaymentService(
@@ -58,6 +60,7 @@ public class StripePaymentService {
             PaymentTransactionRepository transactionRepository,
             PaymentAttemptRepository attemptRepository,
             PaymentWebhookLogRepository webhookLogRepository,
+            PaymentRefundService paymentRefundService,
             ObjectMapper objectMapper
     ) {
         this.properties = properties;
@@ -67,6 +70,7 @@ public class StripePaymentService {
         this.transactionRepository = transactionRepository;
         this.attemptRepository = attemptRepository;
         this.webhookLogRepository = webhookLogRepository;
+        this.paymentRefundService = paymentRefundService;
         this.objectMapper = objectMapper;
     }
 
@@ -197,6 +201,24 @@ public class StripePaymentService {
                 return response;
             }
 
+            if (object instanceof Refund refund) {
+                PaymentRefundDto appliedRefund = paymentRefundService.applyStripeRefundWebhook(refund);
+                String orderStatus = orderRepository.findById(appliedRefund.orderId())
+                        .map(OrderEntity::getStatus)
+                        .orElse(null);
+                log.setProcessed(true);
+                webhookLogRepository.save(log);
+                return new StripePaymentStatusResponse(
+                        appliedRefund.orderId(),
+                        appliedRefund.paymentTransactionId(),
+                        null,
+                        appliedRefund.status(),
+                        appliedRefund.amount(),
+                        properties.resolvedCurrency().toUpperCase(),
+                        orderStatus
+                );
+            }
+
             log.setProcessed(true);
             webhookLogRepository.save(log);
             return new StripePaymentStatusResponse(null, null, null, "IGNORED", null, properties.resolvedCurrency().toUpperCase(), null);
@@ -241,7 +263,13 @@ public class StripePaymentService {
     private void updateTransactionFromIntent(PaymentTransactionEntity transaction, PaymentIntent paymentIntent, String failureReason) {
         transaction.setProviderIntentId(paymentIntent.getId());
         transaction.setProviderPaymentId(paymentIntent.getLatestCharge());
-        transaction.setStatus(mapPaymentIntentStatus(paymentIntent.getStatus()));
+        String currentStatus = transaction.getStatus();
+        String paymentIntentStatus = mapPaymentIntentStatus(paymentIntent.getStatus());
+        if (!(STATUS_PAID.equals(paymentIntentStatus)
+                && currentStatus != null
+                && ("PARTIALLY_REFUNDED".equalsIgnoreCase(currentStatus) || "REFUNDED".equalsIgnoreCase(currentStatus)))) {
+            transaction.setStatus(paymentIntentStatus);
+        }
         transaction.setFailureReason(failureReason == null ? resolveFailureReason(paymentIntent) : failureReason);
         transactionRepository.save(transaction);
     }

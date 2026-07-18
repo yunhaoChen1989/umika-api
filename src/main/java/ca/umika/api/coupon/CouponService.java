@@ -193,6 +193,19 @@ public class CouponService {
         });
     }
 
+    public void markOrderRedemptionsRefunded(UUID orderId) {
+        if (orderId == null) {
+            return;
+        }
+        redemptionRepository.findByOrderId(orderId).forEach(redemption -> {
+            if ("RESERVED".equalsIgnoreCase(redemption.getStatus())
+                    || "APPLIED".equalsIgnoreCase(redemption.getStatus())) {
+                redemption.setStatus("REFUNDED");
+                redemptionRepository.save(redemption);
+            }
+        });
+    }
+
     private void validateCoupon(CouponEntity coupon, UUID locationId, UUID userId, BigDecimal subtotal) {
         BigDecimal resolvedSubtotal = nullToZero(subtotal).setScale(2, RoundingMode.HALF_UP);
         LocalDateTime now = LocalDateTime.now(clock);

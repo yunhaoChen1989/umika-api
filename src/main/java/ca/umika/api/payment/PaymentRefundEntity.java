@@ -3,7 +3,6 @@ package ca.umika.api.payment;
 import jakarta.persistence.*;
 import ca.umika.api.common.persistence.BaseEntity;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
@@ -23,6 +22,9 @@ public class PaymentRefundEntity extends BaseEntity {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
+    @Column(name = "requested_by", nullable = false)
+    private UUID requestedBy;
+
     @Column(name = "amount", nullable = false)
     private BigDecimal amount;
 
@@ -31,6 +33,12 @@ public class PaymentRefundEntity extends BaseEntity {
 
     @Column(name = "provider_refund_id")
     private String providerRefundId;
+
+    @Column(name = "idempotency_key", nullable = false, unique = true, length = 100)
+    private String idempotencyKey;
+
+    @Column(name = "failure_reason")
+    private String failureReason;
 
     @Column(name = "status", nullable = false)
     private String status;
@@ -66,6 +74,14 @@ public UUID getId() {
         this.userId = userId;
     }
 
+    public UUID getRequestedBy() {
+        return requestedBy;
+    }
+
+    public void setRequestedBy(UUID requestedBy) {
+        this.requestedBy = requestedBy;
+    }
+
     public BigDecimal getAmount() {
         return amount;
     }
@@ -88,6 +104,22 @@ public UUID getId() {
 
     public void setProviderRefundId(String providerRefundId) {
         this.providerRefundId = providerRefundId;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
+    }
+
+    public String getFailureReason() {
+        return failureReason;
+    }
+
+    public void setFailureReason(String failureReason) {
+        this.failureReason = failureReason;
     }
 
     public String getStatus() {
