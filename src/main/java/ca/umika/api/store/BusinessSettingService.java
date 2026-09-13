@@ -30,7 +30,11 @@ public class BusinessSettingService {
             definition("ORDER", "DEFAULT_TAX_RATE", "Tax rate", "Sales tax percentage used for order checkout.", "decimal", "percent", "13"),
             definition("ORDER", "ORDER_DISCOUNT_PERCENT", "Order discount percent", "Default order-level discount percentage.", "decimal", "percent", "0"),
             definition("ORDER", "ORDER_DISCOUNT_AMOUNT", "Order discount amount", "Default fixed order-level discount amount.", "decimal", "currency", "0"),
-            definition("ORDER", "MIN_PICKUP_TIME_MINUTES", "Minimum pickup time", "Minimum preparation time before a pickup order can be ready.", "integer", "minutes", "15"),
+            definition("ORDER", "MIN_PICKUP_TIME_MINUTES", "Legacy minimum pickup time", "Deprecated fallback used only when the applicable price-based pickup setting is not configured.", "integer", "minutes", "15"),
+            definition("ORDER", "PICKUP_TIME_UNDER_50_MINUTES", "Pickup time under $50", "Minimum pickup preparation time for orders with a final total below $50.", "integer", "minutes", "15"),
+            definition("ORDER", "PICKUP_TIME_50_TO_80_MINUTES", "Pickup time from $50 to under $80", "Minimum pickup preparation time for orders with a final total from $50 to under $80.", "integer", "minutes", "20"),
+            definition("ORDER", "PICKUP_TIME_80_TO_100_MINUTES", "Pickup time from $80 to $100", "Minimum pickup preparation time for orders with a final total from $80 through $100.", "integer", "minutes", "25"),
+            definition("ORDER", "PICKUP_TIME_OVER_100_MINUTES", "Pickup time over $100", "Minimum pickup preparation time for orders with a final total above $100.", "integer", "minutes", "35"),
             definition("ORDER", "ORDER_CUTOFF_BEFORE_CLOSE_MINUTES", "Order cutoff before closing", "Minutes before store closing when same-day pickup orders stop being accepted.", "integer", "minutes", "0"),
             definition("ORDER", "AUTO_ACCEPT_ORDERS", "Auto accept orders", "Automatically accept paid orders and move them into preparation.", "boolean", "boolean", "true"),
             definition("REWARD", "POINTS_PER_DOLLAR", "Points per dollar", "Loyalty points earned per paid dollar.", "decimal", "points", "1"),
@@ -294,16 +298,30 @@ public class BusinessSettingService {
         } catch (NumberFormatException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, definition.key() + " must be numeric");
         }
+        if (isPickupTier(definition.key()) && value.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, definition.key() + " must be a positive whole number");
+        }
         if (value.compareTo(BigDecimal.ZERO) < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, definition.key() + " cannot be negative");
         }
         if ("integer".equals(definition.valueType()) && value.stripTrailingZeros().scale() > 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, definition.key() + " must be a whole number");
         }
+        if (isPickupTier(definition.key())) {
+            try {
+                value.intValueExact();
+            } catch (ArithmeticException exception) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, definition.key() + " must be a valid whole-minute integer");
+            }
+        }
         if ("percent".equals(definition.unit()) && value.compareTo(BigDecimal.valueOf(100)) > 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, definition.key() + " cannot be greater than 100");
         }
         return value.stripTrailingZeros().toPlainString();
+    }
+
+    private boolean isPickupTier(String key) {
+        return key != null && key.startsWith("PICKUP_TIME_") && key.endsWith("_MINUTES");
     }
 
     private static Map.Entry<String, SettingDefinition> definition(

@@ -21,7 +21,6 @@ import ca.umika.api.reward.RewardTransactionEntity;
 import ca.umika.api.reward.RewardTransactionRepository;
 import ca.umika.api.reward.RewardWalletEntity;
 import ca.umika.api.reward.RewardWalletRepository;
-import ca.umika.api.store.BusinessHourEntity;
 import ca.umika.api.store.BusinessHourRepository;
 import ca.umika.api.store.LocationRepository;
 import ca.umika.api.store.LocationSettingRepository;
@@ -39,7 +38,6 @@ import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -81,8 +79,6 @@ public class OrderService {
     private static final String DEFAULT_TAX_RATE = "DEFAULT_TAX_RATE";
     private static final String REFERRAL_FIRST_ORDER_POINTS = "REFERRAL_FIRST_ORDER_POINTS";
     private static final String MIN_REFERRAL_ORDER_AMOUNT = "MIN_REFERRAL_ORDER_AMOUNT";
-    private static final String MIN_PICKUP_TIME_MINUTES = "MIN_PICKUP_TIME_MINUTES";
-    private static final String ORDER_CUTOFF_BEFORE_CLOSE_MINUTES = "ORDER_CUTOFF_BEFORE_CLOSE_MINUTES";
     private static final String AUTO_ACCEPT_ORDERS = "AUTO_ACCEPT_ORDERS";
 
     private final OrderRepository repository;
@@ -95,7 +91,7 @@ public class OrderService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final LocationRepository locationRepository;
-    private final BusinessHourRepository businessHourRepository;
+    private final PickupPreparationTimeService pickupPreparationTimeService;
     private final SystemSettingRepository systemSettingRepository;
     private final LocationSettingRepository locationSettingRepository;
     private final RewardTransactionRepository rewardTransactionRepository;
@@ -107,7 +103,6 @@ public class OrderService {
     private final OrderNotificationService orderNotificationService;
     private final CouponService couponService;
     private final ObjectMapper objectMapper;
-    private final Clock clock;
 
     @Autowired
     public OrderService(
@@ -144,7 +139,11 @@ public class OrderService {
         this.userRepository = userRepository;
         this.userProfileRepository = userProfileRepository;
         this.locationRepository = locationRepository;
-        this.businessHourRepository = businessHourRepository;
+        this.pickupPreparationTimeService = new PickupPreparationTimeService(
+                systemSettingRepository,
+                locationSettingRepository,
+                businessHourRepository
+        );
         this.systemSettingRepository = systemSettingRepository;
         this.locationSettingRepository = locationSettingRepository;
         this.rewardTransactionRepository = rewardTransactionRepository;
@@ -156,7 +155,6 @@ public class OrderService {
         this.orderNotificationService = orderNotificationService;
         this.couponService = couponService;
         this.objectMapper = objectMapper;
-        this.clock = Clock.systemDefaultZone();
     }
 
     public OrderService(
@@ -514,7 +512,12 @@ public class OrderService {
         BigDecimal finalTotal = taxableAmount.add(taxAmount).add(tipAmount).setScale(2, RoundingMode.HALF_UP);
 
         String orderType = normalizeOrderType(request.orderType());
-        LocalDateTime requestedPickupTime = resolveRequestedPickupTime(cart.getLocationId(), orderType, request.requestedPickupTime());
+        LocalDateTime requestedPickupTime = pickupPreparationTimeService.resolve(
+                cart.getLocationId(),
+                orderType,
+                finalTotal,
+                request.requestedPickupTime()
+        );
 
         OrderEntity order = new OrderEntity();
         order.setUserId(user.getId());
@@ -909,10 +912,7 @@ public class OrderService {
         if (REFERRAL_FIRST_ORDER_POINTS.equals(key) || MIN_REFERRAL_ORDER_AMOUNT.equals(key)) {
             return "REFERRAL";
         }
-        if (DEFAULT_TAX_RATE.equals(key)
-                || MIN_PICKUP_TIME_MINUTES.equals(key)
-                || ORDER_CUTOFF_BEFORE_CLOSE_MINUTES.equals(key)
-                || AUTO_ACCEPT_ORDERS.equals(key)) {
+        if (DEFAULT_TAX_RATE.equals(key) || AUTO_ACCEPT_ORDERS.equals(key)) {
             return "ORDER";
         }
         return "REWARD";
@@ -1130,62 +1130,6 @@ public class OrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid orderType");
         }
         return normalized;
-    }
-
-    private LocalDateTime resolveRequestedPickupTime(UUID locationId, String orderType, LocalDateTime requestedPickupTime) {
-        if (!"PICKUP".equals(orderType)) {
-            return null;
-        }
-
-        int minimumMinutes = settingDecimal(locationId, MIN_PICKUP_TIME_MINUTES, BigDecimal.valueOf(15))
-                .setScale(0, RoundingMode.CEILING)
-                .intValue();
-        if (minimumMinutes < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Minimum pickup time cannot be negative");
-        }
-
-        LocalDateTime earliestPickupTime = LocalDateTime.now(clock).plusMinutes(minimumMinutes);
-        LocalDateTime pickupTime = requestedPickupTime == null ? earliestPickupTime : requestedPickupTime;
-        if (pickupTime.isBefore(earliestPickupTime)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "requestedPickupTime must be at least " + minimumMinutes + " minutes from now");
-        }
-        validatePickupBeforeClosingCutoff(locationId, pickupTime);
-        return pickupTime;
-    }
-
-    private void validatePickupBeforeClosingCutoff(UUID locationId, LocalDateTime pickupTime) {
-        int cutoffMinutes = settingDecimal(locationId, ORDER_CUTOFF_BEFORE_CLOSE_MINUTES, BigDecimal.ZERO)
-                .setScale(0, RoundingMode.CEILING)
-                .intValue();
-        if (cutoffMinutes <= 0) {
-            return;
-        }
-        if (businessHourRepository == null) {
-            return;
-        }
-
-        LocalDate today = LocalDate.now(clock);
-        if (!pickupTime.toLocalDate().isEqual(today)) {
-            return;
-        }
-
-        short dayOfWeek = toBusinessDayOfWeek(pickupTime);
-        BusinessHourEntity hours = businessHourRepository.findByLocationIdAndDayOfWeek(locationId, dayOfWeek).orElse(null);
-        if (hours == null) {
-            return;
-        }
-        if (Boolean.TRUE.equals(hours.getIsClosed()) || hours.getCloseTime() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The store is closing, you can only order for tomorrow");
-        }
-
-        LocalDateTime closingCutoff = LocalDateTime.of(pickupTime.toLocalDate(), hours.getCloseTime()).minusMinutes(cutoffMinutes);
-        if (!pickupTime.isBefore(closingCutoff)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The store is closing, you can only order for tomorrow");
-        }
-    }
-
-    private short toBusinessDayOfWeek(LocalDateTime dateTime) {
-        return (short) (dateTime.getDayOfWeek().getValue() % 7);
     }
 
     private LocalDateTime resolveManagerRequestedPickupTime(String orderType, LocalDateTime requestedPickupTime) {
