@@ -142,6 +142,36 @@ class PickupPreparationTimeServiceTest {
                 .hasMessageContaining("store is closing");
     }
 
+    @Test
+    void manualAcceptanceLeavesUnspecifiedTimeForManager() {
+        assertThat(service.resolve(LOCATION_ID, "PICKUP", new BigDecimal("150"), null, false)).isNull();
+    }
+
+    @Test
+    void manualAcceptancePreservesRequestedTimeWithoutTierMinimum() {
+        LocalDateTime requested = LocalDateTime.now(CLOCK).plusMinutes(5);
+        assertThat(service.resolve(LOCATION_ID, "PICKUP", new BigDecimal("150"), requested, false))
+                .isEqualTo(requested);
+        assertThatThrownBy(() -> service.resolve(LOCATION_ID, "PICKUP", new BigDecimal("150"), requested, true))
+                .isInstanceOf(ResponseStatusException.class).hasMessageContaining("at least 35 minutes");
+    }
+
+    @Test
+    void manualAcceptanceStillRejectsPastTimesAndClosingCutoff() {
+        assertThatThrownBy(() -> service.resolve(LOCATION_ID, "PICKUP", new BigDecimal("150"),
+                LocalDateTime.now(CLOCK).minusMinutes(1), false))
+                .isInstanceOf(ResponseStatusException.class).hasMessageContaining("past");
+        when(systemSettingRepository.findBySettingGroupAndSettingKeyIgnoreCase(
+                "ORDER", "ORDER_CUTOFF_BEFORE_CLOSE_MINUTES"))
+                .thenReturn(Optional.of(systemSetting("ORDER_CUTOFF_BEFORE_CLOSE_MINUTES", "20")));
+        BusinessHourEntity hours = new BusinessHourEntity();
+        hours.setCloseTime(LocalTime.of(12, 20));
+        when(businessHourRepository.findByLocationIdAndDayOfWeek(LOCATION_ID, (short) 0))
+                .thenReturn(Optional.of(hours));
+        assertThatThrownBy(() -> service.resolve(LOCATION_ID, "PICKUP", new BigDecimal("150"), null, false))
+                .isInstanceOf(ResponseStatusException.class).hasMessageContaining("store is closing");
+    }
+
     private SystemSettingEntity systemSetting(String key, String value) {
         SystemSettingEntity entity = new SystemSettingEntity();
         entity.setSettingGroup("ORDER");

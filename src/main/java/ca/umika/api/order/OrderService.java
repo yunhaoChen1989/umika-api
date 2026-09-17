@@ -516,7 +516,8 @@ public class OrderService {
                 cart.getLocationId(),
                 orderType,
                 finalTotal,
-                request.requestedPickupTime()
+                request.requestedPickupTime(),
+                settingBoolean(cart.getLocationId(), AUTO_ACCEPT_ORDERS, true)
         );
 
         OrderEntity order = new OrderEntity();

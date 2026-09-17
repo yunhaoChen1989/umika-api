@@ -56,7 +56,8 @@ public class SecurityConfig {
                                 "/actuator/health",
                                 "/actuator/info",
                                 "/uploads/**",
-                                "/api/v1/auth/**"
+                                "/api/v1/auth/**",
+                                "/api/v1/print-agent/**"
                         ).permitAll()
                         .requestMatchers(
                                 "/api/v1/cart/**"

@@ -54,8 +54,26 @@ public class PickupPreparationTimeService {
             BigDecimal finalTotal,
             LocalDateTime requestedPickupTime
     ) {
+        return resolve(locationId, orderType, finalTotal, requestedPickupTime, true);
+    }
+
+    public LocalDateTime resolve(
+            UUID locationId,
+            String orderType,
+            BigDecimal finalTotal,
+            LocalDateTime requestedPickupTime,
+            boolean autoAcceptOrders
+    ) {
         if (!"PICKUP".equals(orderType)) {
             return null;
+        }
+        if (!autoAcceptOrders) {
+            LocalDateTime now = LocalDateTime.now(clock);
+            if (requestedPickupTime != null && requestedPickupTime.isBefore(now)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "requestedPickupTime cannot be in the past");
+            }
+            validateBeforeClosingCutoff(locationId, requestedPickupTime == null ? now : requestedPickupTime);
+            return requestedPickupTime;
         }
         if (finalTotal == null || finalTotal.compareTo(BigDecimal.ZERO) < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Backend-calculated finalTotal is required for pickup preparation time");

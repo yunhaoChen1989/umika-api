@@ -12,12 +12,15 @@ public class OrderNotificationService {
     private static final String ORDER_STATUS_UPDATED = "ORDER_STATUS_UPDATED";
 
     private final OrderNotificationWebSocketHandler webSocketHandler;
+    private final ca.umika.api.printing.PrinterService printerService;
 
-    public OrderNotificationService(OrderNotificationWebSocketHandler webSocketHandler) {
+    public OrderNotificationService(OrderNotificationWebSocketHandler webSocketHandler, ca.umika.api.printing.PrinterService printerService) {
         this.webSocketHandler = webSocketHandler;
+        this.printerService = printerService;
     }
 
     public void notifyPaidOrder(OrderResponse order, boolean autoAccepted) {
+        printerService.enqueue(order);
         OrderNotificationPayload payload = new OrderNotificationPayload(
                 autoAccepted ? NEW_ORDER_AUTO_ACCEPTED : ORDER_ACCEPTANCE_REQUESTED,
                 order.id(),
