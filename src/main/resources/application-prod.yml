@@ -17,6 +17,18 @@ spring:
     baseline-on-migrate: true
     baseline-version: 9
     locations: filesystem:/home/umikaSushi/SQL
+  mail:
+    host: ${BREVO_SMTP_HOST:smtp-relay.brevo.com}
+    port: ${BREVO_SMTP_PORT:587}
+    username: ${BREVO_SMTP_USERNAME:}
+    password: ${BREVO_SMTP_KEY:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
 
 server:
   port: ${SERVER_PORT:2026}
@@ -50,7 +62,6 @@ logging:
 
 jwt:
   secret: ${JWT_SECRET}
-  expirationMs: 3600000
 
 stripe:
   publishable-key: ${STRIPE_PUBLISHABLE_KEY:}
@@ -65,5 +76,10 @@ google:
 
 app:
   public-base-url: ${APP_PUBLIC_BASE_URL:https://umikasushi.ca}
+  email:
+    enabled: ${EMAIL_ENABLED:false}
+    from-address: ${EMAIL_FROM_ADDRESS:info@umikasushi.ca}
+    from-name: ${EMAIL_FROM_NAME:Umika Sushi}
+    reply-to: ${EMAIL_REPLY_TO:info@umikasushi.ca}
   upload:
     base-dir: /home/umika-api/uploads

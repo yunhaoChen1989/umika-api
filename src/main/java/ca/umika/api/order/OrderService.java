@@ -635,7 +635,7 @@ public class OrderService {
         }
 
         OrderResponse response = toResponse(order);
-        orderNotificationService.notifyStatusUpdated(response);
+        orderNotificationService.notifyStatusUpdated(response, oldStatus);
         return response;
     }
 
@@ -689,7 +689,7 @@ public class OrderService {
         log.info("order refund applied orderId={} orderNumber={} oldStatus={} newStatus={} amount={} changedBy={}",
                 order.getId(), order.getOrderNumber(), oldStatus, newStatus, refundAmount, changedBy);
         OrderResponse response = toResponse(order);
-        orderNotificationService.notifyStatusUpdated(response);
+        orderNotificationService.notifyRefunded(response, oldStatus, refundAmount, fullyRefunded, reason);
         return response;
     }
 
