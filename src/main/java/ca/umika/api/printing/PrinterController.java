@@ -24,6 +24,14 @@ public class PrinterController {
     public Configuration routing(Authentication auth,@PathVariable UUID locationId,@Valid @RequestBody Routing request) {
         access.require(auth,locationId); return service.saveRouting(locationId,request);
     }
+    @GetMapping("/receipt-template")
+    public ReceiptTemplate receiptTemplate(Authentication auth,@PathVariable UUID locationId) {
+        access.require(auth,locationId); return service.receiptTemplate(locationId);
+    }
+    @PutMapping("/receipt-template")
+    public ReceiptTemplate receiptTemplate(Authentication auth,@PathVariable UUID locationId,@Valid @RequestBody ReceiptTemplate request) {
+        access.require(auth,locationId); return service.saveReceiptTemplate(locationId,request);
+    }
     @PostMapping("/orders/{orderId}/reprint")
     public void printOrder(Authentication auth,@PathVariable UUID locationId,@PathVariable UUID orderId) {
         access.requireOrder(auth,locationId); service.reprintOrder(locationId,orderId);

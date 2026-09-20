@@ -13,6 +13,7 @@
 .idea/**/shelf
 .idea/**
 src/main/resources/*.yml
+config/application-local.properties
 # AWS User-specific
 .idea/**/aws.xml
 

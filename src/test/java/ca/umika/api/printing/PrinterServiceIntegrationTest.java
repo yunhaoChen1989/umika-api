@@ -40,7 +40,7 @@ class PrinterServiceIntegrationTest {
         db.execute("CREATE TABLE menu_categories(id UUID PRIMARY KEY,location_id UUID,is_deleted BOOLEAN DEFAULT FALSE)");
         db.execute("CREATE TABLE menu_items(id UUID PRIMARY KEY,category_id UUID,location_id UUID,is_deleted BOOLEAN DEFAULT FALSE)");
         db.execute("CREATE TABLE roles(id UUID PRIMARY KEY,name TEXT)");
-        db.execute("CREATE TABLE system_menus(id UUID PRIMARY KEY DEFAULT gen_random_uuid(),parent_id UUID,name TEXT,name_en TEXT,name_zh TEXT,name_ko TEXT,code TEXT UNIQUE,path TEXT,component TEXT,icon TEXT,menu_type TEXT,sort_order INT)");
+        db.execute("CREATE TABLE system_menus(id UUID PRIMARY KEY DEFAULT gen_random_uuid(),parent_id UUID,name TEXT,name_en TEXT,name_zh TEXT,name_ko TEXT,code TEXT UNIQUE,path TEXT,component TEXT,icon TEXT,menu_type TEXT,sort_order INT,description_en TEXT,description_zh TEXT,description_ko TEXT)");
         db.execute("CREATE TABLE role_menus(role_id UUID,menu_id UUID,PRIMARY KEY(role_id,menu_id))");
         new ResourceDatabasePopulator(new FileSystemResource("../../SQL/V44__printer_queue.sql")).execute(source);
         new ResourceDatabasePopulator(new FileSystemResource("../../SQL/V45__agent_owned_printer_addresses.sql")).execute(source);
@@ -48,6 +48,7 @@ class PrinterServiceIntegrationTest {
         new ResourceDatabasePopulator(new FileSystemResource("../../SQL/V47__printer_category_routing.sql")).execute(source);
         new ResourceDatabasePopulator(new FileSystemResource("../../SQL/V48__always_print_whole_order.sql")).execute(source);
         new ResourceDatabasePopulator(new FileSystemResource("../../SQL/V49__whole_and_station_tickets_on_same_printer.sql")).execute(source);
+        new ResourceDatabasePopulator(new FileSystemResource("../../SQL/V51__receipt_templates.sql")).execute(source);
         service=new PrinterService(db,JsonMapper.builder().findAndAddModules().build());
         location=UUID.randomUUID(); other=UUID.randomUUID(); order=UUID.randomUUID(); instance=UUID.randomUUID(); printer=UUID.randomUUID();
         db.update("INSERT INTO locations(id) VALUES (?),(?)",location,other);
@@ -62,6 +63,19 @@ class PrinterServiceIntegrationTest {
         when(value.items()).thenReturn(List.of()); return value;
     }
     private PollResponse poll() { return service.poll(token,new Poll(instance,Map.of())); }
+    @Test void receiptTemplateIsLocationScopedValidatedAndFrozenWithTickets() {
+        var template=new ReceiptTemplate("Umika Sushi","Thank you","LARGE",false,false,true,true,
+            false,true,true,true,true);
+        assertEquals(template,service.saveReceiptTemplate(location,template));
+        assertEquals(template,service.receiptTemplate(location));
+        assertEquals("STANDARD",service.receiptTemplate(other).fontSize());
+        service.enqueue(paidOrder());
+        var frozen=(Map<?,?>)poll().jobs().getFirst().receipt().get("template");
+        assertEquals("LARGE",frozen.get("fontSize"));
+        assertEquals("Umika Sushi",frozen.get("headerText"));
+        service.saveReceiptTemplate(location,new ReceiptTemplate("Changed","","COMPACT",true,true,true,true,true,true,true,true,true));
+        assertEquals("LARGE",((Map<?,?>)service.jobs(location).getFirst().receipt().get("template")).get("fontSize"));
+    }
     @Test void itemRoutingAndWholeOrderSettingAreFrozenForAllTicketReprints() {
         UUID reception=UUID.randomUUID(), sushi=UUID.randomUUID(), soupItem=UUID.randomUUID(), rollItem=UUID.randomUUID();
         db.update("INSERT INTO menu_items(id,location_id) VALUES (?,?),(?,?)",soupItem,location,rollItem,location);

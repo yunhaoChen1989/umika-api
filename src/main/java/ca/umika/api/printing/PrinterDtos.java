@@ -18,6 +18,13 @@ public final class PrinterDtos {
                                 boolean autoWholeOrder, List<ItemRoute> itemRoutes, List<CategoryRoute> categoryRoutes) {}
     public record ItemRoute(@NotNull UUID menuItemId, @NotNull UUID printerId) {}
     public record CategoryRoute(@NotNull UUID categoryId, @NotNull UUID printerId) {}
+    public record ReceiptTemplate(@NotNull @Size(max=80) String headerText,
+                                  @NotNull @Size(max=160) String footerText,
+                                  @NotNull @Pattern(regexp="COMPACT|STANDARD|LARGE") String fontSize,
+                                  boolean showCustomerPhone, boolean showPlacedTime,
+                                  boolean showItemPrices, boolean showSubtotal,
+                                  boolean showDiscount, boolean showTax, boolean showTip,
+                                  boolean showStationItemCount, boolean showOrderTotal) {}
     public record Routing(@NotNull @Size(min=1,max=16) List<@NotNull @Valid Printer> printers,
                           @NotNull UUID wholeOrderPrinterId, boolean autoWholeOrder,
                           @NotNull @Size(max=5000) List<@NotNull @Valid ItemRoute> itemRoutes,

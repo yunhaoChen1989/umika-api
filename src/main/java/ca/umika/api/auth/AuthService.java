@@ -35,6 +35,7 @@ public class AuthService {
     private final UserProfileService userProfileService;
     private final ReferralRepository referralRepository;
     private final AccountRoleService accountRoleService;
+    private final EmailVerificationService emailVerificationService;
     private final GoogleIdTokenVerifier googleIdTokenVerifier;
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -46,6 +47,7 @@ public class AuthService {
             UserProfileService userProfileService,
             ReferralRepository referralRepository,
             AccountRoleService accountRoleService,
+            EmailVerificationService emailVerificationService,
             @Value("${google.oauth.client-id}") String googleClientId
     ) {
         this.userRepository = userRepository;
@@ -55,6 +57,7 @@ public class AuthService {
         this.userProfileService = userProfileService;
         this.referralRepository = referralRepository;
         this.accountRoleService = accountRoleService;
+        this.emailVerificationService = emailVerificationService;
         this.googleIdTokenVerifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), GsonFactory.getDefaultInstance())
                 .setAudience(List.of(googleClientId))
                 .build();
@@ -87,13 +90,16 @@ public class AuthService {
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid referral code"));
         }
 
+        emailVerificationService.consumeValidCode(email, registerRequest.verificationCode());
+        LocalDateTime verifiedAt = LocalDateTime.now();
+
         UserWriteRequest userRequest = new UserWriteRequest(
                 email,
                 blankToNull(registerRequest.phone()),
                 registerRequest.password(),
                 null,
-                false,
-                null,
+                true,
+                verifiedAt,
                 null,
                 referrer != null ? referrer.getId() : null,
                 null,

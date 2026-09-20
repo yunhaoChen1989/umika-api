@@ -65,6 +65,20 @@ public class PrinterService {
             settings.pollSeconds(),settings.staleMinutes(),settings.alarmEnabled(),location);
         return configuration(location);
     }
+    public ReceiptTemplate receiptTemplate(UUID location) {
+        ensure(location);
+        String value=db.queryForObject("SELECT receipt_template::text FROM printer_settings WHERE location_id=?",String.class,location);
+        try { return json.readValue(value,ReceiptTemplate.class); }
+        catch(Exception e) { throw new IllegalStateException("Invalid receipt template",e); }
+    }
+    public ReceiptTemplate saveReceiptTemplate(UUID location, ReceiptTemplate template) {
+        lock(location);
+        var normalized=new ReceiptTemplate(template.headerText().trim(),template.footerText().trim(),template.fontSize(),
+            template.showCustomerPhone(),template.showPlacedTime(),template.showItemPrices(),template.showSubtotal(),
+            template.showDiscount(),template.showTax(),template.showTip(),template.showStationItemCount(),template.showOrderTotal());
+        db.update("UPDATE printer_settings SET receipt_template=?::jsonb WHERE location_id=?",write(normalized),location);
+        return normalized;
+    }
     public Configuration configure(String token, Configure request) {
         UUID location=authenticate(token,request.instanceId());
         // Logical identities belong to managers. Older agents may still include
@@ -202,6 +216,7 @@ public class PrinterService {
         receipt.put("subtotal",order.subtotal()); receipt.put("discount",order.totalDiscount());
         receipt.put("tax",order.taxAmount()); receipt.put("tip",order.tipAmount());
         receipt.put("finalTotal",order.finalTotal());
+        receipt.put("template",json.convertValue(receiptTemplate(order.locationId()),new TypeReference<Map<String,Object>>(){}));
         Configuration config=configuration(order.locationId());
         List<Map<String,Object>> tickets=new ArrayList<>();
         if(!config.routingManaged()) {

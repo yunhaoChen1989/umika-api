@@ -2,6 +2,7 @@ package ca.umika.api.auth;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record RegisterRequest(
@@ -21,6 +22,10 @@ public record RegisterRequest(
 
         String preferredLanguage,
 
-        String referralCode
+        String referralCode,
+
+        @NotBlank
+        @Pattern(regexp = "\\d{6}")
+        String verificationCode
 ) {
 }
