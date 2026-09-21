@@ -217,7 +217,7 @@ public class OrderEmailListener {
                     </div>
                     <table style="width:100%%;border-collapse:collapse">%s</table>
                     <div style="border-top:1px solid #ddd;margin-top:14px;padding-top:14px;text-align:right;font-size:18px"><strong>%s</strong></div>
-                    <p style="margin-top:26px"><a href="%s/account" style="color:#176b4d">%s</a></p>
+                    <p style="margin-top:26px"><a href="%s/order#order-history" style="color:#176b4d">%s</a></p>
                   </div>
                 </div></body></html>
                 """.formatted(
@@ -228,7 +228,7 @@ public class OrderEmailListener {
         String plain = heading + "\n\n" + strip(customerName) + ",\n\n" + message
                 + "\n\n" + orderNumber(order) + "\n" + location
                 + "\nPickup: " + formatPickupTime(order.requestedPickupTime())
-                + "\nTotal: " + money(order.finalTotal()) + "\n\n" + publicBaseUrl + "/account";
+                + "\nTotal: " + money(order.finalTotal()) + "\n\n" + publicBaseUrl + "/order#order-history";
         return new EmailContent(subject, plain, html);
     }
 
