@@ -80,6 +80,7 @@ public class OrderService {
     private static final String REFERRAL_FIRST_ORDER_POINTS = "REFERRAL_FIRST_ORDER_POINTS";
     private static final String MIN_REFERRAL_ORDER_AMOUNT = "MIN_REFERRAL_ORDER_AMOUNT";
     private static final String AUTO_ACCEPT_ORDERS = "AUTO_ACCEPT_ORDERS";
+    private static final String DELIVERY_ENABLED = "DELIVERY_ENABLED";
 
     private final OrderRepository repository;
     private final OrderItemRepository orderItemRepository;
@@ -512,6 +513,9 @@ public class OrderService {
         BigDecimal finalTotal = taxableAmount.add(taxAmount).add(tipAmount).setScale(2, RoundingMode.HALF_UP);
 
         String orderType = normalizeOrderType(request.orderType());
+        if ("DELIVERY".equals(orderType) && !settingBoolean(cart.getLocationId(), DELIVERY_ENABLED, true)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Delivery is not available for this location");
+        }
         LocalDateTime requestedPickupTime = pickupPreparationTimeService.resolve(
                 cart.getLocationId(),
                 orderType,
@@ -913,7 +917,7 @@ public class OrderService {
         if (REFERRAL_FIRST_ORDER_POINTS.equals(key) || MIN_REFERRAL_ORDER_AMOUNT.equals(key)) {
             return "REFERRAL";
         }
-        if (DEFAULT_TAX_RATE.equals(key) || AUTO_ACCEPT_ORDERS.equals(key)) {
+        if (DEFAULT_TAX_RATE.equals(key) || AUTO_ACCEPT_ORDERS.equals(key) || DELIVERY_ENABLED.equals(key)) {
             return "ORDER";
         }
         return "REWARD";

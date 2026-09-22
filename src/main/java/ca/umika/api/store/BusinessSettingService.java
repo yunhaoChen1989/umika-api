@@ -37,6 +37,7 @@ public class BusinessSettingService {
             definition("ORDER", "PICKUP_TIME_OVER_100_MINUTES", "Pickup time over $100", "Minimum pickup preparation time for orders with a final total above $100.", "integer", "minutes", "35"),
             definition("ORDER", "ORDER_CUTOFF_BEFORE_CLOSE_MINUTES", "Order cutoff before closing", "Minutes before store closing when same-day pickup orders stop being accepted.", "integer", "minutes", "0"),
             definition("ORDER", "AUTO_ACCEPT_ORDERS", "Auto accept orders", "Automatically accept paid orders and move them into preparation.", "boolean", "boolean", "true"),
+            definition("ORDER", "DELIVERY_ENABLED", "Enable delivery", "Allow customers to select delivery when ordering from this store.", "boolean", "boolean", "true"),
             definition("REWARD", "POINTS_PER_DOLLAR", "Points per dollar", "Loyalty points earned per paid dollar.", "decimal", "points", "1"),
             definition("REWARD", "POINT_VALUE_CENTS", "Point value", "Cash redemption value of one point, in cents.", "decimal", "cents", "5"),
             definition("REWARD", "MAX_REDEMPTION_PERCENT", "Max redemption percent", "Maximum order subtotal percentage payable with points.", "decimal", "percent", "50"),
@@ -71,20 +72,19 @@ public class BusinessSettingService {
 
     @Transactional(readOnly = true)
     public BusinessSettingsResponse effective(Authentication authentication, UUID locationId, String locationCode) {
-        UserEntity user = resolveUser(authentication);
-        if (locationId == null && (locationCode == null || locationCode.isBlank())) {
-            if (isStoreRole(user.getId()) && user.getLocationId() != null) {
-                LocationEntity location = locationRepository.findById(user.getLocationId())
-                        .orElseThrow(() -> new ResourceNotFoundException("Location not found: " + user.getLocationId()));
-                return buildResponse(location);
-            }
-            assertCanReadGlobal(user.getId());
-            return new BusinessSettingsResponse(null, null, "Global", buildItems(null));
+        if (locationId != null || (locationCode != null && !locationCode.isBlank())) {
+            LocationEntity location = resolveLocation(null, locationId, locationCode);
+            return buildResponse(location);
         }
 
-        LocationEntity location = resolveLocation(user, locationId, locationCode);
-        assertCanManage(user.getId(), location.getId());
-        return buildResponse(location);
+        UserEntity user = resolveUser(authentication);
+        if (isStoreRole(user.getId()) && user.getLocationId() != null) {
+            LocationEntity location = locationRepository.findById(user.getLocationId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Location not found: " + user.getLocationId()));
+            return buildResponse(location);
+        }
+        assertCanReadGlobal(user.getId());
+        return new BusinessSettingsResponse(null, null, "Global", buildItems(null));
     }
 
     public BusinessSettingsResponse updateLocationSettings(Authentication authentication, UUID locationId, BusinessSettingsUpdateRequest request) {
@@ -202,7 +202,7 @@ public class BusinessSettingService {
             return locationRepository.findByLocationCodeIgnoreCase(locationCode.trim().toUpperCase(Locale.ROOT))
                     .orElseThrow(() -> new ResourceNotFoundException("Location not found: " + locationCode));
         }
-        if (user.getLocationId() != null) {
+        if (user != null && user.getLocationId() != null) {
             return locationRepository.findById(user.getLocationId())
                     .orElseGet(this::firstLocation);
         }

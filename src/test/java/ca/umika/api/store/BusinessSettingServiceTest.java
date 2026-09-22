@@ -104,6 +104,27 @@ class BusinessSettingServiceTest {
     }
 
     @Test
+    void publicLocationSettingsExposeDeliveryAvailability() {
+        LocationSettingEntity deliverySetting = new LocationSettingEntity();
+        deliverySetting.setLocationId(LOCATION_ID);
+        deliverySetting.setSettingGroup("ORDER");
+        deliverySetting.setSettingKey("DELIVERY_ENABLED");
+        deliverySetting.setSettingValue("false");
+        when(locationSettingRepository.findByLocationIdAndSettingGroupIgnoreCaseAndSettingKeyIgnoreCase(
+                LOCATION_ID, "ORDER", "DELIVERY_ENABLED")).thenReturn(Optional.of(deliverySetting));
+
+        BusinessSettingsResponse response = service.effective(null, LOCATION_ID, null);
+
+        BusinessSettingItemDto item = response.settings().stream()
+                .filter(setting -> setting.settingKey().equals("DELIVERY_ENABLED"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(item.valueType()).isEqualTo("boolean");
+        assertThat(item.effectiveValue()).isEqualTo("false");
+        assertThat(item.source()).isEqualTo("LOCATION");
+    }
+
+    @Test
     void rejectsZeroAndFractionalPickupMinutes() {
         when(accountRoleService.resolveRoleNames(USER_ID)).thenReturn(List.of("ROLE_ADMIN"));
 
