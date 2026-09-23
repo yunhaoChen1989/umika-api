@@ -150,18 +150,25 @@ public class PrinterService {
         UUID location=authenticate(token,request.instanceId());
         if(request.printerStatus().values().stream().anyMatch(v->v==null || v.length()>100)) bad("PRINT_INVALID_STATUS");
         db.update("UPDATE printer_settings SET last_seen=NOW(),agent_status=?::jsonb WHERE location_id=?",write(request.printerStatus()),location);
-        // Hold overdue or no-longer-actionable orders before claiming them.
+        // Paid orders awaiting staff acceptance keep their frozen tickets queued,
+        // but are not eligible for automatic printing until accepted. Explicit
+        // reprints remain available while PAID for manager-requested printing.
         db.update("""
             UPDATE print_jobs j SET state='HELD',updated_at=NOW() FROM orders o,printer_settings s,order_printers p
             WHERE j.order_id=o.id AND j.location_id=s.location_id AND j.printer_id=p.id AND j.location_id=?
-            AND j.state='QUEUED' AND ((o.status NOT IN ('PAID','PREPARING','READY','PARTIALLY_REFUNDED') AND NOT (j.reprint AND o.status='COMPLETED'))
-                OR j.created_at < NOW()-s.stale_minutes*INTERVAL '1 minute')
+            AND j.state='QUEUED' AND ((j.reprint AND o.status NOT IN ('PAID','PREPARING','READY','PARTIALLY_REFUNDED','COMPLETED'))
+                OR (NOT j.reprint AND o.status NOT IN ('PAID','PREPARING','READY','PARTIALLY_REFUNDED','COMPLETED'))
+                OR (j.reprint AND j.created_at < NOW()-s.stale_minutes*INTERVAL '1 minute'))
             """,location);
         // Bound in-flight work per printer so one unplugged station cannot starve the others.
         for (Printer printer:configuration(location).printers()) {
             db.update("""
                 UPDATE print_jobs SET state='CLAIMED',updated_at=NOW() WHERE id IN
-                (SELECT id FROM print_jobs WHERE printer_id=? AND state='QUEUED' ORDER BY created_at,CASE WHEN ticket_kind='WHOLE' THEN 0 ELSE 1 END,id
+                (SELECT j.id FROM print_jobs j JOIN orders o ON o.id=j.order_id
+                 WHERE j.printer_id=? AND j.state='QUEUED'
+                   AND ((j.reprint AND o.status IN ('PAID','PREPARING','READY','PARTIALLY_REFUNDED','COMPLETED'))
+                     OR (NOT j.reprint AND o.status IN ('PREPARING','READY','PARTIALLY_REFUNDED','COMPLETED')))
+                 ORDER BY j.created_at,CASE WHEN j.ticket_kind='WHOLE' THEN 0 ELSE 1 END,j.id
                  LIMIT GREATEST(0,10-(SELECT COUNT(*) FROM print_jobs WHERE printer_id=? AND state='CLAIMED'))
                  FOR UPDATE SKIP LOCKED)
                 """,printer.id(),printer.id());

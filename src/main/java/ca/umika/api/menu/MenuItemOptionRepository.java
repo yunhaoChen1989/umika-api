@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface MenuItemOptionRepository extends JpaRepository<MenuItemOptionEntity, UUID> {
     List<MenuItemOptionEntity> findByIdInAndItemIdAndIsActiveTrue(List<UUID> ids, UUID itemId);
+    List<MenuItemOptionEntity> findByItemIdAndIsActiveTrueOrderBySortOrderAsc(UUID itemId);
+    List<MenuItemOptionEntity> findByItemIdInAndIsActiveTrueOrderBySortOrderAsc(List<UUID> itemIds);
 }

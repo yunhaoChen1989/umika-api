@@ -12,8 +12,7 @@ import ca.umika.api.menu.MenuCategoryRepository;
 import ca.umika.api.menu.MenuItemEntity;
 import ca.umika.api.menu.MenuItemImageEntity;
 import ca.umika.api.menu.MenuItemImageRepository;
-import ca.umika.api.menu.MenuItemOptionEntity;
-import ca.umika.api.menu.MenuItemOptionRepository;
+import ca.umika.api.menu.MenuOptionAssignmentService;
 import ca.umika.api.menu.MenuItemRepository;
 import ca.umika.api.store.LocationRepository;
 import ca.umika.api.user.UserRepository;
@@ -53,7 +52,7 @@ public class CartService {
     private final MenuCategoryRepository categoryRepository;
     private final MenuItemRepository menuItemRepository;
     private final MenuItemImageRepository menuItemImageRepository;
-    private final MenuItemOptionRepository menuItemOptionRepository;
+    private final MenuOptionAssignmentService menuOptionAssignmentService;
     private final LocationMenuOverrideRepository overrideRepository;
     private final CouponService couponService;
     private final ObjectMapper objectMapper;
@@ -66,7 +65,7 @@ public class CartService {
             MenuCategoryRepository categoryRepository,
             MenuItemRepository menuItemRepository,
             MenuItemImageRepository menuItemImageRepository,
-            MenuItemOptionRepository menuItemOptionRepository,
+            MenuOptionAssignmentService menuOptionAssignmentService,
             LocationMenuOverrideRepository overrideRepository,
             CouponService couponService,
             ObjectMapper objectMapper
@@ -78,7 +77,7 @@ public class CartService {
         this.categoryRepository = categoryRepository;
         this.menuItemRepository = menuItemRepository;
         this.menuItemImageRepository = menuItemImageRepository;
-        this.menuItemOptionRepository = menuItemOptionRepository;
+        this.menuOptionAssignmentService = menuOptionAssignmentService;
         this.overrideRepository = overrideRepository;
         this.couponService = couponService;
         this.objectMapper = objectMapper;
@@ -320,7 +319,7 @@ public class CartService {
         String itemName = pickString(item.getName(), itemOverride == null ? null : itemOverride.getCustomName());
         BigDecimal basePrice = pickBigDecimal(item.getPrice(), itemOverride == null ? null : itemOverride.getCustomPrice());
         String imageUrl = pickString(resolveGlobalImageUrl(item.getId()), itemOverride == null ? null : itemOverride.getCustomImageUrl());
-        List<OptionSnapshot> optionSnapshots = resolveOptions(item.getId(), optionIds);
+        List<OptionSnapshot> optionSnapshots = resolveOptions(item.getId(), locationId, optionIds);
         BigDecimal optionTotal = optionSnapshots.stream()
                 .map(OptionSnapshot::priceModifier)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -338,25 +337,9 @@ public class CartService {
         return category.getLocationId() == null;
     }
 
-    private List<OptionSnapshot> resolveOptions(UUID menuItemId, List<UUID> optionIds) {
-        if (optionIds == null || optionIds.isEmpty()) {
-            return List.of();
-        }
-        List<UUID> selectedOptionIds = optionIds.stream()
-                .filter(id -> id != null)
-                .distinct()
-                .toList();
-        if (selectedOptionIds.isEmpty()) {
-            return List.of();
-        }
-
-        List<MenuItemOptionEntity> options = menuItemOptionRepository.findByIdInAndItemIdAndIsActiveTrue(selectedOptionIds, menuItemId);
-        if (options.size() != selectedOptionIds.size()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid menu item option");
-        }
-        return options.stream()
-                .sorted(Comparator.comparingInt(option -> option.getSortOrder() == null ? 0 : option.getSortOrder()))
-                .map(option -> new OptionSnapshot(option.getId(), option.getName(), nullToZero(option.getPriceModifier())))
+    private List<OptionSnapshot> resolveOptions(UUID menuItemId, UUID locationId, List<UUID> optionIds) {
+        return menuOptionAssignmentService.resolveSelections(menuItemId, locationId, optionIds).stream()
+                .map(option -> new OptionSnapshot(option.id(), option.name(), option.priceModifier()))
                 .toList();
     }
 

@@ -26,6 +26,7 @@ public class MenuCatalogService {
     private final MenuItemImageRepository imageRepository;
     private final LocationMenuOverrideRepository overrideRepository;
     private final MenuAccessService menuAccessService;
+    private final MenuOptionAssignmentService optionAssignmentService;
 
     public MenuCatalogService(
             LocationRepository locationRepository,
@@ -33,7 +34,8 @@ public class MenuCatalogService {
             MenuItemRepository itemRepository,
             MenuItemImageRepository imageRepository,
             LocationMenuOverrideRepository overrideRepository,
-            MenuAccessService menuAccessService
+            MenuAccessService menuAccessService,
+            MenuOptionAssignmentService optionAssignmentService
     ) {
         this.locationRepository = locationRepository;
         this.categoryRepository = categoryRepository;
@@ -41,6 +43,7 @@ public class MenuCatalogService {
         this.imageRepository = imageRepository;
         this.overrideRepository = overrideRepository;
         this.menuAccessService = menuAccessService;
+        this.optionAssignmentService = optionAssignmentService;
     }
 
     public MenuCatalogResponseDto resolve(Authentication authentication, UUID locationId, String locationCode) {
@@ -59,6 +62,8 @@ public class MenuCatalogService {
         }
 
         Map<UUID, String> imageUrlsByMenuItemId = resolveImageUrls(items);
+        Map<UUID, List<MenuCatalogOptionGroupDto>> optionGroupsByMenuItemId = optionAssignmentService
+                .getGroupsForItems(items.stream().map(MenuItemEntity::getId).toList(), resolvedLocationId);
 
         Map<OverrideKey, LocationMenuOverrideEntity> overridesByKey = resolvedLocationId == null
                 ? Map.of()
@@ -107,7 +112,8 @@ public class MenuCatalogService {
                     pickString(imageUrlsByMenuItemId.get(item.getId()), override == null ? null : override.getCustomImageUrl()),
                     item.getSku(),
                     pickInteger(item.getDisplayOrder(), override == null ? null : override.getSortOrder()),
-                    resolveVisible(item.getIsAvailable(), item.getIsDeleted(), override == null ? null : override.getIsVisible())
+                    resolveVisible(item.getIsAvailable(), item.getIsDeleted(), override == null ? null : override.getIsVisible()),
+                    optionGroupsByMenuItemId.getOrDefault(item.getId(), List.of())
             );
             itemsByCategory.computeIfAbsent(item.getCategoryId(), ignored -> new ArrayList<>()).add(resolvedItem);
         }
