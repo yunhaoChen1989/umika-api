@@ -286,9 +286,11 @@ public class PrinterService {
         return db.query("SELECT printer_id,receipt FROM print_jobs WHERE order_id=? AND location_id=? AND NOT reprint ORDER BY created_at",
             (rs,n)->Map.<String,Object>of("printerId",rs.getObject("printer_id",UUID.class),"receipt",parse(rs.getString("receipt"))),order,location);
     }
-    private String jobSelect() { return "SELECT j.*,p.name AS printer_name,o.status AS order_status,p.enabled FROM print_jobs j JOIN order_printers p ON p.id=j.printer_id JOIN orders o ON o.id=j.order_id"; }
+    private String jobSelect() { return "SELECT j.*,p.name AS printer_name,o.status AS order_status,o.requested_pickup_time,p.enabled FROM print_jobs j JOIN order_printers p ON p.id=j.printer_id JOIN orders o ON o.id=j.order_id"; }
     private RowMapper<Job> jobMapper() { return (r,n)-> {
         var receipt=parse(r.getString("receipt"));
+        var pickupTime=r.getTimestamp("requested_pickup_time");
+        if(receipt.get("pickupTime")==null && pickupTime!=null) receipt.put("pickupTime",pickupTime.toLocalDateTime().toString());
         receipt.put("currentOrderStatus",r.getString("order_status")); receipt.put("printerEnabled",r.getBoolean("enabled"));
         return new Job(r.getObject("id",UUID.class),r.getObject("order_id",UUID.class),r.getObject("printer_id",UUID.class),
             r.getString("printer_name"),r.getString("state"),r.getBoolean("reprint"),r.getTimestamp("created_at").toInstant(),receipt);

@@ -636,6 +636,12 @@ public class OrderService {
 
         if (request.requestedPickupTime() != null) {
             order.setRequestedPickupTime(resolveManagerRequestedPickupTime(order.getOrderType(), request.requestedPickupTime()));
+        } else if (STATUS_PAID.equalsIgnoreCase(oldStatus)
+                && STATUS_PREPARING.equals(newStatus)
+                && "PICKUP".equals(order.getOrderType())
+                && order.getRequestedPickupTime() == null) {
+            order.setRequestedPickupTime(pickupPreparationTimeService.resolve(
+                    order.getLocationId(), order.getOrderType(), order.getFinalTotal(), null, true));
         }
         order.setStatus(newStatus);
         order = repository.save(order);

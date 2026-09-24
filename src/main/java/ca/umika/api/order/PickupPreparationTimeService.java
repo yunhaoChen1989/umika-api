@@ -67,12 +67,12 @@ public class PickupPreparationTimeService {
         if (!"PICKUP".equals(orderType)) {
             return null;
         }
-        if (!autoAcceptOrders) {
+        if (!autoAcceptOrders && requestedPickupTime != null) {
             LocalDateTime now = LocalDateTime.now(clock);
-            if (requestedPickupTime != null && requestedPickupTime.isBefore(now)) {
+            if (requestedPickupTime.isBefore(now)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "requestedPickupTime cannot be in the past");
             }
-            validateBeforeClosingCutoff(locationId, requestedPickupTime == null ? now : requestedPickupTime);
+            validateBeforeClosingCutoff(locationId, requestedPickupTime);
             return requestedPickupTime;
         }
         if (finalTotal == null || finalTotal.compareTo(BigDecimal.ZERO) < 0) {
