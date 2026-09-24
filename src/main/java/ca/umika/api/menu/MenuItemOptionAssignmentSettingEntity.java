@@ -10,37 +10,27 @@ import jakarta.persistence.Table;
 import java.util.UUID;
 
 @Entity
-@Table(name = "menu_item_option_category_assignments")
-public class MenuItemOptionCategoryAssignmentEntity extends BaseEntity {
+@Table(name = "menu_item_option_assignment_settings")
+public class MenuItemOptionAssignmentSettingEntity extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "item_id")
+    @Column(name = "item_id", nullable = false)
     private UUID itemId;
-
-    @Column(name = "menu_category_id")
-    private UUID menuCategoryId;
-
-    @Column(name = "category_id", nullable = false)
-    private UUID categoryId;
 
     @Column(name = "location_id")
     private UUID locationId;
 
-    @Column(name = "is_enabled", nullable = false)
-    private Boolean isEnabled;
+    @Column(name = "is_customized", nullable = false)
+    private Boolean isCustomized;
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
     public UUID getItemId() { return itemId; }
     public void setItemId(UUID itemId) { this.itemId = itemId; }
-    public UUID getMenuCategoryId() { return menuCategoryId; }
-    public void setMenuCategoryId(UUID menuCategoryId) { this.menuCategoryId = menuCategoryId; }
-    public UUID getCategoryId() { return categoryId; }
-    public void setCategoryId(UUID categoryId) { this.categoryId = categoryId; }
     public UUID getLocationId() { return locationId; }
     public void setLocationId(UUID locationId) { this.locationId = locationId; }
-    public Boolean getIsEnabled() { return isEnabled; }
-    public void setIsEnabled(Boolean enabled) { isEnabled = enabled; }
+    public Boolean getIsCustomized() { return isCustomized; }
+    public void setIsCustomized(Boolean customized) { isCustomized = customized; }
 }

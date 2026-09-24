@@ -24,81 +24,99 @@ import org.springframework.web.server.ResponseStatusException;
 public class MenuOptionAssignmentService {
     private final MenuItemRepository itemRepository;
     private final MenuCategoryRepository menuCategoryRepository;
-    private final MenuItemOptionRepository legacyOptionRepository;
-    private final MenuOptionCategoryRepository categoryRepository;
+    private final MenuOptionCategoryRepository optionCategoryRepository;
     private final MenuOptionRepository optionRepository;
     private final MenuItemOptionCategoryAssignmentRepository assignmentRepository;
+    private final MenuItemOptionAssignmentSettingRepository itemSettingRepository;
     private final MenuAccessService menuAccessService;
 
     public MenuOptionAssignmentService(MenuItemRepository itemRepository,
             MenuCategoryRepository menuCategoryRepository,
-            MenuItemOptionRepository legacyOptionRepository,
-            MenuOptionCategoryRepository categoryRepository,
+            MenuOptionCategoryRepository optionCategoryRepository,
             MenuOptionRepository optionRepository,
             MenuItemOptionCategoryAssignmentRepository assignmentRepository,
+            MenuItemOptionAssignmentSettingRepository itemSettingRepository,
             MenuAccessService menuAccessService) {
         this.itemRepository = itemRepository;
         this.menuCategoryRepository = menuCategoryRepository;
-        this.legacyOptionRepository = legacyOptionRepository;
-        this.categoryRepository = categoryRepository;
+        this.optionCategoryRepository = optionCategoryRepository;
         this.optionRepository = optionRepository;
         this.assignmentRepository = assignmentRepository;
+        this.itemSettingRepository = itemSettingRepository;
         this.menuAccessService = menuAccessService;
     }
 
     @Transactional(readOnly = true)
     public List<MenuCatalogOptionGroupDto> getGroups(UUID itemId, UUID locationId) {
-        ensureItemScope(itemId, locationId);
-        return getGroupsForItems(List.of(itemId), locationId).getOrDefault(itemId, List.of());
+        MenuItemEntity item = getItem(itemId);
+        ensureItemScope(item, locationId);
+        return getGroupsForItems(List.of(item), locationId).getOrDefault(itemId, List.of());
     }
 
     @Transactional(readOnly = true)
-    public Map<UUID, List<MenuCatalogOptionGroupDto>> getGroupsForItems(List<UUID> itemIds, UUID locationId) {
-        if (itemIds.isEmpty()) {
+    public Map<UUID, List<MenuCatalogOptionGroupDto>> getGroupsForItems(List<MenuItemEntity> items, UUID locationId) {
+        if (items.isEmpty()) {
             return Map.of();
         }
-        List<MenuOptionCategoryEntity> categories = categoryRepository.findActiveAvailable(locationId);
-        Map<UUID, MenuOptionCategoryEntity> categoryById = categories.stream()
-                .collect(Collectors.toMap(MenuOptionCategoryEntity::getId, Function.identity()));
-        Map<UUID, Map<UUID, Boolean>> assignmentsByItem = new HashMap<>();
-        assignmentRepository.findByItemIdInAndLocationIdIsNull(itemIds).forEach(row -> assignmentsByItem
+        List<UUID> itemIds = items.stream().map(MenuItemEntity::getId).toList();
+        List<UUID> menuCategoryIds = items.stream().map(MenuItemEntity::getCategoryId).distinct().toList();
+        Map<UUID, MenuOptionCategoryEntity> availableCategories = optionCategoryRepository.findActiveAvailable(locationId)
+                .stream().collect(Collectors.toMap(MenuOptionCategoryEntity::getId, Function.identity()));
+
+        Map<UUID, Map<UUID, Boolean>> categoryAssignments = new HashMap<>();
+        assignmentRepository.findByMenuCategoryIdInAndLocationIdIsNull(menuCategoryIds).forEach(row -> categoryAssignments
+                .computeIfAbsent(row.getMenuCategoryId(), ignored -> new HashMap<>())
+                .put(row.getCategoryId(), Boolean.TRUE.equals(row.getIsEnabled())));
+        if (locationId != null) {
+            assignmentRepository.findByMenuCategoryIdInAndLocationId(menuCategoryIds, locationId).forEach(row -> categoryAssignments
+                    .computeIfAbsent(row.getMenuCategoryId(), ignored -> new HashMap<>())
+                    .put(row.getCategoryId(), Boolean.TRUE.equals(row.getIsEnabled())));
+        }
+
+        Map<UUID, Map<UUID, Boolean>> itemAssignments = new HashMap<>();
+        assignmentRepository.findByItemIdInAndLocationIdIsNull(itemIds).forEach(row -> itemAssignments
                 .computeIfAbsent(row.getItemId(), ignored -> new HashMap<>())
                 .put(row.getCategoryId(), Boolean.TRUE.equals(row.getIsEnabled())));
         if (locationId != null) {
-            assignmentRepository.findByItemIdInAndLocationId(itemIds, locationId).forEach(row -> assignmentsByItem
+            assignmentRepository.findByItemIdInAndLocationId(itemIds, locationId).forEach(row -> itemAssignments
                     .computeIfAbsent(row.getItemId(), ignored -> new HashMap<>())
                     .put(row.getCategoryId(), Boolean.TRUE.equals(row.getIsEnabled())));
         }
-        Set<UUID> allEnabledCategoryIds = assignmentsByItem.values().stream()
-                .flatMap(map -> map.entrySet().stream())
-                .filter(Map.Entry::getValue)
-                .map(Map.Entry::getKey)
-                .filter(categoryById::containsKey)
-                .collect(Collectors.toSet());
-        Map<UUID, List<MenuOptionEntity>> optionsByCategory = allEnabledCategoryIds.isEmpty()
-                ? Map.of()
-                : optionRepository.findByCategoryIdInAndIsActiveTrueOrderBySortOrderAsc(allEnabledCategoryIds).stream()
-                        .collect(Collectors.groupingBy(MenuOptionEntity::getCategoryId));
-        Map<UUID, List<MenuItemOptionEntity>> legacyByItem = legacyOptionRepository
-                .findByItemIdInAndIsActiveTrueOrderBySortOrderAsc(itemIds).stream()
-                .collect(Collectors.groupingBy(MenuItemOptionEntity::getItemId));
 
+        Map<UUID, MenuItemOptionAssignmentSettingEntity> globalItemSettings = itemSettingRepository
+                .findByItemIdInAndLocationIdIsNull(itemIds).stream()
+                .collect(Collectors.toMap(MenuItemOptionAssignmentSettingEntity::getItemId, Function.identity()));
+        Map<UUID, MenuItemOptionAssignmentSettingEntity> locationItemSettings = locationId == null ? Map.of()
+                : itemSettingRepository.findByItemIdInAndLocationId(itemIds, locationId).stream()
+                        .collect(Collectors.toMap(MenuItemOptionAssignmentSettingEntity::getItemId, Function.identity()));
+
+        Set<UUID> effectiveOptionCategoryIds = new HashSet<>();
+        Map<UUID, Set<UUID>> categoryIdsByItem = new HashMap<>();
+        for (MenuItemEntity item : items) {
+            MenuItemOptionAssignmentSettingEntity itemSetting = locationItemSettings.getOrDefault(
+                    item.getId(), globalItemSettings.get(item.getId()));
+            Map<UUID, Boolean> source = Boolean.TRUE.equals(itemSetting == null ? null : itemSetting.getIsCustomized())
+                    ? itemAssignments.getOrDefault(item.getId(), Map.of())
+                    : categoryAssignments.getOrDefault(item.getCategoryId(), Map.of());
+            Set<UUID> ids = source.entrySet().stream().filter(Map.Entry::getValue).map(Map.Entry::getKey)
+                    .filter(availableCategories::containsKey).collect(Collectors.toCollection(HashSet::new));
+            categoryIdsByItem.put(item.getId(), ids);
+            effectiveOptionCategoryIds.addAll(ids);
+        }
+
+        Map<UUID, List<MenuOptionEntity>> optionsByCategory = effectiveOptionCategoryIds.isEmpty() ? Map.of()
+                : optionRepository.findByCategoryIdInAndIsActiveTrueOrderBySortOrderAsc(effectiveOptionCategoryIds).stream()
+                        .collect(Collectors.groupingBy(MenuOptionEntity::getCategoryId));
         Map<UUID, List<MenuCatalogOptionGroupDto>> result = new LinkedHashMap<>();
-        for (UUID itemId : itemIds) {
+        for (MenuItemEntity item : items) {
             List<MenuCatalogOptionGroupDto> groups = new ArrayList<>();
-            List<MenuItemOptionEntity> legacyOptions = legacyByItem.getOrDefault(itemId, List.of());
-            if (!legacyOptions.isEmpty()) {
-                groups.add(toLegacyGroup(legacyOptions));
-            }
-            assignmentsByItem.getOrDefault(itemId, Map.of()).entrySet().stream()
-                    .filter(Map.Entry::getValue)
-                    .map(Map.Entry::getKey)
-                    .map(categoryById::get)
+            categoryIdsByItem.getOrDefault(item.getId(), Set.of()).stream()
+                    .map(availableCategories::get)
                     .filter(category -> category != null)
                     .sorted(Comparator.comparingInt(category -> valueOrZero(category.getSortOrder())))
                     .map(category -> toGroup(category, optionsByCategory.getOrDefault(category.getId(), List.of())))
                     .forEach(groups::add);
-            result.put(itemId, groups);
+            result.put(item.getId(), groups);
         }
         return result;
     }
@@ -107,8 +125,7 @@ public class MenuOptionAssignmentService {
     public List<SelectedMenuOption> resolveSelections(UUID itemId, UUID locationId, List<UUID> selectedIds) {
         List<UUID> distinctIds = selectedIds == null ? List.of() : selectedIds.stream().distinct().toList();
         Map<UUID, MenuCatalogOptionDto> available = new LinkedHashMap<>();
-        List<MenuCatalogOptionGroupDto> groups = getGroups(itemId, locationId);
-        for (MenuCatalogOptionGroupDto group : groups) {
+        for (MenuCatalogOptionGroupDto group : getGroups(itemId, locationId)) {
             if (group.options().isEmpty()) {
                 continue;
             }
@@ -139,79 +156,173 @@ public class MenuOptionAssignmentService {
     }
 
     @Transactional(readOnly = true)
-    public List<MenuCatalogOptionGroupDto> getAssignments(Authentication authentication, UUID itemId, UUID locationId) {
-        assertAssignmentAccess(authentication, itemId, locationId);
-        return getGroups(itemId, locationId);
+    public MenuOptionAssignmentResponse getItemAssignments(Authentication authentication, UUID itemId, UUID locationId) {
+        MenuItemEntity item = assertItemAssignmentAccess(authentication, itemId, locationId);
+        boolean customized = resolveItemCustomized(itemId, locationId);
+        Set<UUID> direct = enabledIds(resolveItemAssignmentRows(itemId, locationId));
+        Set<UUID> effective = customized ? direct : getCategoryAssignmentIds(item.getCategoryId(), locationId);
+        return new MenuOptionAssignmentResponse(customized, direct, effective);
     }
 
-    public List<MenuCatalogOptionGroupDto> replaceAssignments(Authentication authentication, UUID itemId,
+    public MenuOptionAssignmentResponse replaceItemAssignments(Authentication authentication, UUID itemId,
             UUID locationId, MenuItemOptionAssignmentRequest request) {
-        MenuItemEntity item = assertAssignmentAccess(authentication, itemId, locationId);
-        Set<UUID> selected = request == null || request.categoryIds() == null
-                ? Set.of() : new HashSet<>(request.categoryIds());
-        List<MenuOptionCategoryEntity> candidates = categoryRepository.findActiveAvailable(locationId);
-        Set<UUID> candidateIds = candidates.stream().map(MenuOptionCategoryEntity::getId).collect(Collectors.toSet());
-        if (!candidateIds.containsAll(selected)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "One or more option categories are unavailable for this location");
-        }
+        MenuItemEntity item = assertItemAssignmentAccess(authentication, itemId, locationId);
+        boolean customized = request == null || request.customized() == null || Boolean.TRUE.equals(request.customized());
+        Set<UUID> selected = request == null || request.categoryIds() == null ? Set.of() : new HashSet<>(request.categoryIds());
+        validateSelectedOptionCategories(selected, locationId);
 
-        if (locationId == null) {
-            assignmentRepository.deleteByItemIdAndLocationIdIsNull(item.getId());
-            assignmentRepository.saveAll(selected.stream().map(categoryId -> assignment(itemId, categoryId, null, true)).toList());
+        saveItemSetting(itemId, locationId, customized);
+        if (customized) {
+            replaceAssignments(itemId, null, locationId, selected,
+                    locationId == null ? Set.of() : enabledIds(assignmentRepository.findByItemIdAndLocationIdIsNull(itemId)));
+        } else if (locationId == null) {
+            assignmentRepository.deleteByItemIdAndLocationIdIsNull(itemId);
         } else {
-            Set<UUID> inherited = assignmentRepository.findByItemIdAndLocationIdIsNull(itemId).stream()
-                    .filter(row -> Boolean.TRUE.equals(row.getIsEnabled()))
-                    .map(MenuItemOptionCategoryAssignmentEntity::getCategoryId)
-                    .collect(Collectors.toSet());
             assignmentRepository.deleteByItemIdAndLocationId(itemId, locationId);
-            List<MenuItemOptionCategoryAssignmentEntity> overrides = candidates.stream()
-                    .filter(category -> selected.contains(category.getId()) != inherited.contains(category.getId()))
-                    .map(category -> assignment(itemId, category.getId(), locationId, selected.contains(category.getId())))
-                    .toList();
-            assignmentRepository.saveAll(overrides);
         }
-        return getGroups(itemId, locationId);
+        Set<UUID> direct = enabledIds(resolveItemAssignmentRows(itemId, locationId));
+        Set<UUID> effective = customized ? direct : getCategoryAssignmentIds(item.getCategoryId(), locationId);
+        return new MenuOptionAssignmentResponse(customized, direct, effective);
     }
 
-    private MenuItemEntity assertAssignmentAccess(Authentication authentication, UUID itemId, UUID locationId) {
+    @Transactional(readOnly = true)
+    public MenuOptionAssignmentResponse getMenuCategoryAssignments(Authentication authentication, UUID menuCategoryId,
+            UUID locationId) {
+        MenuCategoryEntity menuCategory = assertMenuCategoryAssignmentAccess(authentication, menuCategoryId, locationId);
+        return new MenuOptionAssignmentResponse(true, getCategoryAssignmentIds(menuCategory.getId(), locationId),
+                getCategoryAssignmentIds(menuCategory.getId(), locationId));
+    }
+
+    public MenuOptionAssignmentResponse replaceMenuCategoryAssignments(Authentication authentication, UUID menuCategoryId,
+            UUID locationId, MenuItemOptionAssignmentRequest request) {
+        MenuCategoryEntity menuCategory = assertMenuCategoryAssignmentAccess(authentication, menuCategoryId, locationId);
+        Set<UUID> selected = request == null || request.categoryIds() == null ? Set.of() : new HashSet<>(request.categoryIds());
+        validateSelectedOptionCategories(selected, locationId);
+        Set<UUID> inherited = locationId == null ? Set.of()
+                : enabledIds(assignmentRepository.findByMenuCategoryIdAndLocationIdIsNull(menuCategory.getId()));
+        replaceAssignments(null, menuCategory.getId(), locationId, selected, inherited);
+        Set<UUID> effective = getCategoryAssignmentIds(menuCategory.getId(), locationId);
+        return new MenuOptionAssignmentResponse(true, effective, effective);
+    }
+
+    private void replaceAssignments(UUID itemId, UUID menuCategoryId, UUID locationId, Set<UUID> selected,
+            Set<UUID> inherited) {
+        if (itemId != null) {
+            if (locationId == null) assignmentRepository.deleteByItemIdAndLocationIdIsNull(itemId);
+            else assignmentRepository.deleteByItemIdAndLocationId(itemId, locationId);
+        } else {
+            if (locationId == null) assignmentRepository.deleteByMenuCategoryIdAndLocationIdIsNull(menuCategoryId);
+            else assignmentRepository.deleteByMenuCategoryIdAndLocationId(menuCategoryId, locationId);
+        }
+        Set<UUID> toPersist = locationId == null ? selected : union(selected, inherited);
+        List<MenuItemOptionCategoryAssignmentEntity> rows = toPersist.stream()
+                .filter(categoryId -> locationId == null || selected.contains(categoryId) != inherited.contains(categoryId))
+                .map(categoryId -> assignment(itemId, menuCategoryId, categoryId, locationId, selected.contains(categoryId)))
+                .toList();
+        assignmentRepository.saveAll(rows);
+    }
+
+    private MenuItemEntity assertItemAssignmentAccess(Authentication authentication, UUID itemId, UUID locationId) {
         MenuItemEntity item = getItem(itemId);
-        UUID scope = locationId != null ? locationId : item.getLocationId();
-        menuAccessService.assertWriteAccess(authentication, scope);
+        UUID permissionLocationId = locationId != null ? locationId : item.getLocationId();
+        menuAccessService.assertWriteAccess(authentication, permissionLocationId);
         ensureItemScope(item, locationId);
         return item;
     }
 
-    private void ensureItemScope(UUID itemId, UUID locationId) {
-        ensureItemScope(getItem(itemId), locationId);
+    private MenuCategoryEntity assertMenuCategoryAssignmentAccess(Authentication authentication, UUID menuCategoryId,
+            UUID locationId) {
+        MenuCategoryEntity menuCategory = menuCategoryRepository.findById(menuCategoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Menu category not found: " + menuCategoryId));
+        UUID permissionLocationId = locationId != null ? locationId : menuCategory.getLocationId();
+        menuAccessService.assertWriteAccess(authentication, permissionLocationId);
+        if (menuCategory.getLocationId() != null && !menuCategory.getLocationId().equals(locationId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Menu category does not belong to the requested location");
+        }
+        return menuCategory;
+    }
+
+    private void validateSelectedOptionCategories(Set<UUID> selected, UUID locationId) {
+        Set<UUID> availableIds = optionCategoryRepository.findActiveAvailable(locationId).stream()
+                .map(MenuOptionCategoryEntity::getId).collect(Collectors.toSet());
+        if (!availableIds.containsAll(selected)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "One or more add-on categories are unavailable for this location");
+        }
+    }
+
+    private boolean resolveItemCustomized(UUID itemId, UUID locationId) {
+        if (locationId != null) {
+            MenuItemOptionAssignmentSettingEntity locationSetting = itemSettingRepository
+                    .findByItemIdAndLocationId(itemId, locationId).orElse(null);
+            if (locationSetting != null) return Boolean.TRUE.equals(locationSetting.getIsCustomized());
+        }
+        return itemSettingRepository.findByItemIdAndLocationIdIsNull(itemId)
+                .map(MenuItemOptionAssignmentSettingEntity::getIsCustomized).orElse(false);
+    }
+
+    private void saveItemSetting(UUID itemId, UUID locationId, boolean customized) {
+        MenuItemOptionAssignmentSettingEntity entity = (locationId == null
+                ? itemSettingRepository.findByItemIdAndLocationIdIsNull(itemId)
+                : itemSettingRepository.findByItemIdAndLocationId(itemId, locationId)).orElseGet(() -> {
+                    MenuItemOptionAssignmentSettingEntity created = new MenuItemOptionAssignmentSettingEntity();
+                    created.setItemId(itemId);
+                    created.setLocationId(locationId);
+                    return created;
+                });
+        entity.setIsCustomized(customized);
+        itemSettingRepository.save(entity);
+    }
+
+    private List<MenuItemOptionCategoryAssignmentEntity> resolveItemAssignmentRows(UUID itemId, UUID locationId) {
+        Map<UUID, MenuItemOptionCategoryAssignmentEntity> effective = new LinkedHashMap<>();
+        assignmentRepository.findByItemIdAndLocationIdIsNull(itemId)
+                .forEach(row -> effective.put(row.getCategoryId(), row));
+        if (locationId != null) {
+            assignmentRepository.findByItemIdAndLocationId(itemId, locationId)
+                    .forEach(row -> effective.put(row.getCategoryId(), row));
+        }
+        return new ArrayList<>(effective.values());
+    }
+
+    private Set<UUID> getCategoryAssignmentIds(UUID menuCategoryId, UUID locationId) {
+        Map<UUID, Boolean> effective = new LinkedHashMap<>();
+        assignmentRepository.findByMenuCategoryIdAndLocationIdIsNull(menuCategoryId)
+                .forEach(row -> effective.put(row.getCategoryId(), Boolean.TRUE.equals(row.getIsEnabled())));
+        if (locationId != null) {
+            assignmentRepository.findByMenuCategoryIdAndLocationId(menuCategoryId, locationId)
+                    .forEach(row -> effective.put(row.getCategoryId(), Boolean.TRUE.equals(row.getIsEnabled())));
+        }
+        return enabledIds(effective);
+    }
+
+    private Set<UUID> enabledIds(List<MenuItemOptionCategoryAssignmentEntity> rows) {
+        return rows.stream().filter(row -> Boolean.TRUE.equals(row.getIsEnabled()))
+                .map(MenuItemOptionCategoryAssignmentEntity::getCategoryId).collect(Collectors.toCollection(HashSet::new));
+    }
+
+    private Set<UUID> enabledIds(Map<UUID, Boolean> assignments) {
+        return assignments.entrySet().stream().filter(Map.Entry::getValue).map(Map.Entry::getKey)
+                .collect(Collectors.toCollection(HashSet::new));
+    }
+
+    private Set<UUID> union(Set<UUID> left, Set<UUID> right) {
+        Set<UUID> result = new HashSet<>(left);
+        result.addAll(right);
+        return result;
     }
 
     private void ensureItemScope(MenuItemEntity item, UUID locationId) {
         if (item.getLocationId() != null && !item.getLocationId().equals(locationId)) {
             MenuCategoryEntity category = menuCategoryRepository.findById(item.getCategoryId()).orElse(null);
-            if (category != null && category.getLocationId() == null) {
-                return;
-            }
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Menu item does not belong to the requested location");
+            if (category != null && category.getLocationId() == null) return;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Menu item does not belong to the requested location");
         }
     }
 
     private MenuItemEntity getItem(UUID itemId) {
         return itemRepository.findById(itemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Menu item not found: " + itemId));
-    }
-
-    private Set<UUID> resolveEnabledCategoryIds(UUID itemId, UUID locationId) {
-        Map<UUID, Boolean> effective = new HashMap<>();
-        assignmentRepository.findByItemIdAndLocationIdIsNull(itemId)
-                .forEach(row -> effective.put(row.getCategoryId(), Boolean.TRUE.equals(row.getIsEnabled())));
-        if (locationId != null) {
-            assignmentRepository.findByItemIdAndLocationId(itemId, locationId)
-                    .forEach(row -> effective.put(row.getCategoryId(), Boolean.TRUE.equals(row.getIsEnabled())));
-        }
-        return effective.entrySet().stream().filter(Map.Entry::getValue).map(Map.Entry::getKey)
-                .collect(Collectors.toCollection(HashSet::new));
     }
 
     private MenuCatalogOptionGroupDto toGroup(MenuOptionCategoryEntity category, List<MenuOptionEntity> options) {
@@ -225,19 +336,11 @@ public class MenuOptionAssignmentService {
                                 option.getIsActive())).toList());
     }
 
-    private MenuCatalogOptionGroupDto toLegacyGroup(List<MenuItemOptionEntity> options) {
-        boolean required = options.stream().anyMatch(option -> Boolean.TRUE.equals(option.getIsRequired()));
-        return new MenuCatalogOptionGroupDto(null, "Options", null, null, null, null, null,
-                required, required ? 1 : 0, null, -1,
-                options.stream().map(option -> new MenuCatalogOptionDto(option.getId(), option.getName(),
-                        null, null, null, null, null, defaultPrice(option.getPriceModifier()),
-                        option.getSortOrder(), option.getIsActive())).toList());
-    }
-
-    private MenuItemOptionCategoryAssignmentEntity assignment(UUID itemId, UUID categoryId, UUID locationId,
-            boolean enabled) {
+    private MenuItemOptionCategoryAssignmentEntity assignment(UUID itemId, UUID menuCategoryId, UUID categoryId,
+            UUID locationId, boolean enabled) {
         MenuItemOptionCategoryAssignmentEntity entity = new MenuItemOptionCategoryAssignmentEntity();
         entity.setItemId(itemId);
+        entity.setMenuCategoryId(menuCategoryId);
         entity.setCategoryId(categoryId);
         entity.setLocationId(locationId);
         entity.setIsEnabled(enabled);

@@ -11,21 +11,23 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/manager/menu-items/{itemId}/option-categories")
-public class MenuItemOptionAssignmentController {
+@RequestMapping("/api/v1/manager/menu-categories/{menuCategoryId}/option-categories")
+public class MenuCategoryOptionAssignmentController {
     private final MenuOptionAssignmentService service;
 
-    public MenuItemOptionAssignmentController(MenuOptionAssignmentService service) { this.service = service; }
+    public MenuCategoryOptionAssignmentController(MenuOptionAssignmentService service) {
+        this.service = service;
+    }
 
     @GetMapping
-    public MenuOptionAssignmentResponse get(Authentication authentication, @PathVariable UUID itemId,
+    public MenuOptionAssignmentResponse get(Authentication authentication, @PathVariable UUID menuCategoryId,
             @RequestParam(required = false) UUID locationId) {
-        return service.getItemAssignments(authentication, itemId, locationId);
+        return service.getMenuCategoryAssignments(authentication, menuCategoryId, locationId);
     }
 
     @PutMapping
-    public MenuOptionAssignmentResponse replace(Authentication authentication, @PathVariable UUID itemId,
+    public MenuOptionAssignmentResponse replace(Authentication authentication, @PathVariable UUID menuCategoryId,
             @RequestParam(required = false) UUID locationId, @RequestBody MenuItemOptionAssignmentRequest request) {
-        return service.replaceItemAssignments(authentication, itemId, locationId, request);
+        return service.replaceMenuCategoryAssignments(authentication, menuCategoryId, locationId, request);
     }
 }

@@ -63,7 +63,7 @@ public class MenuCatalogService {
 
         Map<UUID, String> imageUrlsByMenuItemId = resolveImageUrls(items);
         Map<UUID, List<MenuCatalogOptionGroupDto>> optionGroupsByMenuItemId = optionAssignmentService
-                .getGroupsForItems(items.stream().map(MenuItemEntity::getId).toList(), resolvedLocationId);
+                .getGroupsForItems(items, resolvedLocationId);
 
         Map<OverrideKey, LocationMenuOverrideEntity> overridesByKey = resolvedLocationId == null
                 ? Map.of()

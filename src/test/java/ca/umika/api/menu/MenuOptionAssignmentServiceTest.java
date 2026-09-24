@@ -2,7 +2,6 @@ package ca.umika.api.menu;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -29,10 +28,10 @@ class MenuOptionAssignmentServiceTest {
 
     private MenuItemRepository itemRepository;
     private MenuCategoryRepository menuCategoryRepository;
-    private MenuItemOptionRepository legacyOptionRepository;
     private MenuOptionCategoryRepository categoryRepository;
     private MenuOptionRepository optionRepository;
     private MenuItemOptionCategoryAssignmentRepository assignmentRepository;
+    private MenuItemOptionAssignmentSettingRepository itemSettingRepository;
     private MenuAccessService menuAccessService;
     private MenuOptionAssignmentService service;
 
@@ -40,20 +39,19 @@ class MenuOptionAssignmentServiceTest {
     void setUp() {
         itemRepository = mock(MenuItemRepository.class);
         menuCategoryRepository = mock(MenuCategoryRepository.class);
-        legacyOptionRepository = mock(MenuItemOptionRepository.class);
         categoryRepository = mock(MenuOptionCategoryRepository.class);
         optionRepository = mock(MenuOptionRepository.class);
         assignmentRepository = mock(MenuItemOptionCategoryAssignmentRepository.class);
+        itemSettingRepository = mock(MenuItemOptionAssignmentSettingRepository.class);
         menuAccessService = mock(MenuAccessService.class);
-        service = new MenuOptionAssignmentService(itemRepository, menuCategoryRepository, legacyOptionRepository,
-                categoryRepository, optionRepository, assignmentRepository, menuAccessService);
+        service = new MenuOptionAssignmentService(itemRepository, menuCategoryRepository, categoryRepository,
+                optionRepository, assignmentRepository, itemSettingRepository, menuAccessService);
 
         MenuItemEntity item = new MenuItemEntity();
         item.setId(ITEM_ID);
-        item.setCategoryId(UUID.randomUUID());
+        item.setCategoryId(CATEGORY_ID);
         item.setLocationId(null);
         when(itemRepository.findById(ITEM_ID)).thenReturn(Optional.of(item));
-        when(legacyOptionRepository.findByItemIdInAndIsActiveTrueOrderBySortOrderAsc(List.of(ITEM_ID))).thenReturn(List.of());
     }
 
     @Test
@@ -61,9 +59,9 @@ class MenuOptionAssignmentServiceTest {
         MenuOptionCategoryEntity category = category(1);
         MenuOptionEntity option = option();
         when(categoryRepository.findActiveAvailable(LOCATION_ID)).thenReturn(List.of(category));
-        when(assignmentRepository.findByItemIdInAndLocationIdIsNull(List.of(ITEM_ID)))
-                .thenReturn(List.of(assignment(null, true)));
-        when(assignmentRepository.findByItemIdInAndLocationId(List.of(ITEM_ID), LOCATION_ID)).thenReturn(List.of());
+        when(assignmentRepository.findByMenuCategoryIdInAndLocationIdIsNull(List.of(CATEGORY_ID)))
+                .thenReturn(List.of(categoryAssignment(null, true)));
+        when(assignmentRepository.findByMenuCategoryIdInAndLocationId(List.of(CATEGORY_ID), LOCATION_ID)).thenReturn(List.of());
         when(optionRepository.findByCategoryIdInAndIsActiveTrueOrderBySortOrderAsc(Set.of(CATEGORY_ID)))
                 .thenReturn(List.of(option));
 
@@ -78,10 +76,10 @@ class MenuOptionAssignmentServiceTest {
     @Test
     void locationDisabledAssignmentOverridesGlobalAssignment() {
         when(categoryRepository.findActiveAvailable(LOCATION_ID)).thenReturn(List.of(category(0)));
-        when(assignmentRepository.findByItemIdInAndLocationIdIsNull(List.of(ITEM_ID)))
-                .thenReturn(List.of(assignment(null, true)));
-        when(assignmentRepository.findByItemIdInAndLocationId(List.of(ITEM_ID), LOCATION_ID))
-                .thenReturn(List.of(assignment(LOCATION_ID, false)));
+        when(assignmentRepository.findByMenuCategoryIdInAndLocationIdIsNull(List.of(CATEGORY_ID)))
+                .thenReturn(List.of(categoryAssignment(null, true)));
+        when(assignmentRepository.findByMenuCategoryIdInAndLocationId(List.of(CATEGORY_ID), LOCATION_ID))
+                .thenReturn(List.of(categoryAssignment(LOCATION_ID, false)));
 
         assertThat(service.getGroups(ITEM_ID, LOCATION_ID)).isEmpty();
     }
@@ -92,9 +90,9 @@ class MenuOptionAssignmentServiceTest {
         category.setMaxSelect(1);
         MenuOptionEntity option = option();
         when(categoryRepository.findActiveAvailable(LOCATION_ID)).thenReturn(List.of(category));
-        when(assignmentRepository.findByItemIdInAndLocationIdIsNull(List.of(ITEM_ID)))
-                .thenReturn(List.of(assignment(null, true)));
-        when(assignmentRepository.findByItemIdInAndLocationId(List.of(ITEM_ID), LOCATION_ID)).thenReturn(List.of());
+        when(assignmentRepository.findByMenuCategoryIdInAndLocationIdIsNull(List.of(CATEGORY_ID)))
+                .thenReturn(List.of(categoryAssignment(null, true)));
+        when(assignmentRepository.findByMenuCategoryIdInAndLocationId(List.of(CATEGORY_ID), LOCATION_ID)).thenReturn(List.of());
         when(optionRepository.findByCategoryIdInAndIsActiveTrueOrderBySortOrderAsc(Set.of(CATEGORY_ID)))
                 .thenReturn(List.of(option));
 
@@ -112,18 +110,23 @@ class MenuOptionAssignmentServiceTest {
     void replacingLocationAssignmentsStoresDisabledOverrideForInheritedCategory() {
         MenuOptionCategoryEntity category = category(0);
         when(categoryRepository.findActiveAvailable(LOCATION_ID)).thenReturn(List.of(category));
-        when(assignmentRepository.findByItemIdAndLocationIdIsNull(ITEM_ID))
-                .thenReturn(List.of(assignment(null, true)));
-        when(assignmentRepository.findByItemIdAndLocationId(ITEM_ID, LOCATION_ID)).thenReturn(List.of());
-        when(optionRepository.findByCategoryIdInAndIsActiveTrueOrderBySortOrderAsc(anyList())).thenReturn(List.of());
+        MenuCategoryEntity menuCategory = new MenuCategoryEntity();
+        menuCategory.setId(CATEGORY_ID);
+        menuCategory.setLocationId(null);
+        when(menuCategoryRepository.findById(CATEGORY_ID)).thenReturn(Optional.of(menuCategory));
+        when(assignmentRepository.findByMenuCategoryIdAndLocationIdIsNull(CATEGORY_ID))
+                .thenReturn(List.of(categoryAssignment(null, true)));
+        when(assignmentRepository.findByMenuCategoryIdAndLocationId(CATEGORY_ID, LOCATION_ID)).thenReturn(List.of());
 
-        service.replaceAssignments(AUTH, ITEM_ID, LOCATION_ID, new MenuItemOptionAssignmentRequest(Set.of()));
+        service.replaceMenuCategoryAssignments(AUTH, CATEGORY_ID, LOCATION_ID,
+                new MenuItemOptionAssignmentRequest(Set.of(), null));
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<MenuItemOptionCategoryAssignmentEntity>> captor = ArgumentCaptor.forClass(List.class);
         verify(assignmentRepository).saveAll(captor.capture());
         assertThat(captor.getValue()).singleElement().satisfies(assignment -> {
-            assertThat(assignment.getCategoryId()).isEqualTo(CATEGORY_ID);
+            assertThat(assignment.getMenuCategoryId()).isEqualTo(CATEGORY_ID);
+            assertThat(assignment.getItemId()).isNull();
             assertThat(assignment.getLocationId()).isEqualTo(LOCATION_ID);
             assertThat(assignment.getIsEnabled()).isFalse();
         });
@@ -151,9 +154,9 @@ class MenuOptionAssignmentServiceTest {
         return option;
     }
 
-    private MenuItemOptionCategoryAssignmentEntity assignment(UUID locationId, boolean enabled) {
+    private MenuItemOptionCategoryAssignmentEntity categoryAssignment(UUID locationId, boolean enabled) {
         MenuItemOptionCategoryAssignmentEntity assignment = new MenuItemOptionCategoryAssignmentEntity();
-        assignment.setItemId(ITEM_ID);
+        assignment.setMenuCategoryId(CATEGORY_ID);
         assignment.setCategoryId(CATEGORY_ID);
         assignment.setLocationId(locationId);
         assignment.setIsEnabled(enabled);

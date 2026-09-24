@@ -9,6 +9,12 @@ public interface MenuItemOptionCategoryAssignmentRepository extends JpaRepositor
     List<MenuItemOptionCategoryAssignmentEntity> findByItemIdAndLocationId(UUID itemId, UUID locationId);
     List<MenuItemOptionCategoryAssignmentEntity> findByItemIdInAndLocationIdIsNull(List<UUID> itemIds);
     List<MenuItemOptionCategoryAssignmentEntity> findByItemIdInAndLocationId(List<UUID> itemIds, UUID locationId);
+    List<MenuItemOptionCategoryAssignmentEntity> findByMenuCategoryIdAndLocationIdIsNull(UUID menuCategoryId);
+    List<MenuItemOptionCategoryAssignmentEntity> findByMenuCategoryIdAndLocationId(UUID menuCategoryId, UUID locationId);
+    List<MenuItemOptionCategoryAssignmentEntity> findByMenuCategoryIdInAndLocationIdIsNull(List<UUID> menuCategoryIds);
+    List<MenuItemOptionCategoryAssignmentEntity> findByMenuCategoryIdInAndLocationId(List<UUID> menuCategoryIds, UUID locationId);
     void deleteByItemIdAndLocationIdIsNull(UUID itemId);
     void deleteByItemIdAndLocationId(UUID itemId, UUID locationId);
+    void deleteByMenuCategoryIdAndLocationIdIsNull(UUID menuCategoryId);
+    void deleteByMenuCategoryIdAndLocationId(UUID menuCategoryId, UUID locationId);
 }

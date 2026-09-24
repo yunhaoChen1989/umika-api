@@ -68,7 +68,6 @@ public class SecurityConfig {
                                 "/api/v1/menu-categories/**",
                                 "/api/v1/menu-items/**",
                                 "/api/v1/menu-item-images/**",
-                                "/api/v1/menu-item-options/**",
                                 "/api/v1/menu-recommendations/**",
                                 "/api/v1/business-settings/effective",
                                 "/api/v1/business-hours/**"
