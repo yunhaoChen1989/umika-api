@@ -25,6 +25,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -97,14 +98,44 @@ public class CartService {
             cart = mergeGuestCartIntoUserCart(cart, owner.userId(), request.sessionId().trim(), locationId);
         }
 
+        refreshPrices(cart);
         return toResponse(cart);
     }
 
-    @Transactional(readOnly = true)
     public CartResponse getCart(Authentication authentication, UUID id, String sessionId) {
         CartEntity cart = findCart(id);
         assertOwner(authentication, sessionId, cart);
+        if (ACTIVE.equals(cart.getStatus())) {
+            refreshPrices(cart);
+        }
         return toResponse(cart);
+    }
+
+    public void refreshPrices(CartEntity cart) {
+        assertActive(cart);
+        BigDecimal subtotal = BigDecimal.ZERO;
+        boolean changed = false;
+        for (CartItemEntity item : cartItemRepository.findByCart_Id(cart.getId())) {
+            StoredOptions stored = readStoredOptions(item.getOptions());
+            ResolvedCartItem current = resolveMenuItem(cart.getLocationId(), item.getMenuItemId(), stored.optionIds(), stored.note());
+            if (!Objects.equals(item.getUnitPrice(), current.unitPrice())
+                    || !Objects.equals(item.getItemName(), current.itemName())
+                    || !Objects.equals(item.getImageUrl(), current.imageUrl())
+                    || !Objects.equals(item.getOptions(), current.optionsJson())) {
+                item.setUnitPrice(current.unitPrice());
+                item.setItemName(current.itemName());
+                item.setImageUrl(current.imageUrl());
+                item.setOptions(current.optionsJson());
+                cartItemRepository.save(item);
+                changed = true;
+            }
+            subtotal = subtotal.add(current.unitPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
+        }
+        if (changed || cart.getSubtotal() == null || subtotal.compareTo(cart.getSubtotal()) != 0) {
+            cart.setSubtotal(subtotal);
+            cartRepository.save(cart);
+            refreshAppliedCoupon(cart);
+        }
     }
 
     public CartResponse addItem(Authentication authentication, UUID cartId, CartAddItemRequest request, String sessionId) {
@@ -118,9 +149,12 @@ public class CartService {
         for (CartItemEntity existing : cartItemRepository.findByCart_Id(cart.getId())) {
             if (existing.getMenuItemId().equals(request.menuItemId()) && sameOptions(existing.getOptions(), resolved.optionsJson())) {
                 existing.setQuantity(existing.getQuantity() + quantity);
+                existing.setUnitPrice(resolved.unitPrice());
+                existing.setItemName(resolved.itemName());
+                existing.setImageUrl(resolved.imageUrl());
+                existing.setOptions(resolved.optionsJson());
                 cartItemRepository.save(existing);
-                recalculateSubtotal(cart);
-                refreshAppliedCoupon(cart);
+                refreshPrices(cart);
                 return toResponse(cart);
             }
         }
@@ -134,8 +168,7 @@ public class CartService {
         item.setUnitPrice(resolved.unitPrice());
         item.setOptions(resolved.optionsJson());
         cartItemRepository.save(item);
-        recalculateSubtotal(cart);
-        refreshAppliedCoupon(cart);
+        refreshPrices(cart);
         return toResponse(cart);
     }
 
@@ -152,8 +185,7 @@ public class CartService {
         int quantity = normalizeQuantity(request.quantity());
         item.setQuantity(quantity);
         cartItemRepository.save(item);
-        recalculateSubtotal(cart);
-        refreshAppliedCoupon(cart);
+        refreshPrices(cart);
         return toResponse(cart);
     }
 
@@ -168,8 +200,7 @@ public class CartService {
         }
 
         cartItemRepository.delete(item);
-        recalculateSubtotal(cart);
-        refreshAppliedCoupon(cart);
+        refreshPrices(cart);
         return toResponse(cart);
     }
 
@@ -503,6 +534,35 @@ public class CartService {
         }
     }
 
+    private StoredOptions readStoredOptions(String optionsJson) {
+        if (optionsJson == null || optionsJson.isBlank()) {
+            return new StoredOptions(List.of(), null);
+        }
+        try {
+            JsonNode root = objectMapper.readTree(optionsJson);
+            if (root == null || !root.isObject()) {
+                throw new IllegalArgumentException("Invalid cart options");
+            }
+            JsonNode selected = root.path("selectedOptions");
+            if (!selected.isMissingNode() && !selected.isArray()) {
+                throw new IllegalArgumentException("Invalid cart options");
+            }
+            List<UUID> ids = new ArrayList<>();
+            for (JsonNode option : selected) {
+                JsonNode id = option.isObject() ? option.path("id") : option;
+                if (!id.isTextual()) {
+                    throw new IllegalArgumentException("Invalid cart option ID");
+                }
+                ids.add(UUID.fromString(id.asText()));
+            }
+            JsonNode note = root.path("note");
+            return new StoredOptions(ids, note.isTextual() ? note.asText() : null);
+        } catch (JsonProcessingException | IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Cart add-ons have changed. Remove the affected item and add it again", exception);
+        }
+    }
+
     private boolean sameOptions(String existingOptions, String requestedOptions) {
         try {
             JsonNode existing = objectMapper.readTree(existingOptions == null || existingOptions.isBlank() ? "{}" : existingOptions);
@@ -532,5 +592,8 @@ public class CartService {
     }
 
     private record OptionSnapshot(UUID id, String name, BigDecimal priceModifier) {
+    }
+
+    private record StoredOptions(List<UUID> optionIds, String note) {
     }
 }

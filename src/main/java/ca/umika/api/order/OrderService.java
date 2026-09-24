@@ -8,6 +8,7 @@ import ca.umika.api.cart.CartEntity;
 import ca.umika.api.cart.CartItemEntity;
 import ca.umika.api.cart.CartItemRepository;
 import ca.umika.api.cart.CartRepository;
+import ca.umika.api.cart.CartService;
 import ca.umika.api.common.web.ResourceNotFoundException;
 import ca.umika.api.coupon.CouponCalculation;
 import ca.umika.api.coupon.CouponRedemptionEntity;
@@ -89,6 +90,7 @@ public class OrderService {
     private final OrderStatusHistoryRepository statusHistoryRepository;
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
+    private final CartService cartService;
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final LocationRepository locationRepository;
@@ -128,7 +130,8 @@ public class OrderService {
             UserPermissionRepository userPermissionRepository,
             OrderNotificationService orderNotificationService,
             CouponService couponService,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            CartService cartService
     ) {
         this.repository = repository;
         this.orderItemRepository = orderItemRepository;
@@ -137,6 +140,7 @@ public class OrderService {
         this.statusHistoryRepository = statusHistoryRepository;
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
+        this.cartService = cartService;
         this.userRepository = userRepository;
         this.userProfileRepository = userProfileRepository;
         this.locationRepository = locationRepository;
@@ -203,7 +207,8 @@ public class OrderService {
                 userPermissionRepository,
                 orderNotificationService,
                 couponService,
-                objectMapper
+                objectMapper,
+                null
         );
     }
 
@@ -471,12 +476,14 @@ public class OrderService {
         return toResponse(order);
     }
 
-    @Transactional(readOnly = true)
     public OrderRedemptionPreviewResponse previewRedemption(Authentication authentication, OrderRedemptionPreviewRequest request) {
         UserEntity user = resolveUser(authentication);
         CartEntity cart = findCart(request.cartId());
         assertUserCart(user.getId(), cart);
         assertActiveCart(cart);
+        if (cartService != null) {
+            cartService.refreshPrices(cart);
+        }
         return calculateRedemptionPreview(cart, user.getId(), request.pointsToRedeem(), request.tipAmount());
     }
 
@@ -486,6 +493,9 @@ public class OrderService {
         assertUserCart(user.getId(), cart);
         assertActiveCart(cart);
         ensureLocationExists(cart.getLocationId());
+        if (cartService != null) {
+            cartService.refreshPrices(cart);
+        }
 
         List<CartItemEntity> cartItems = cartItemRepository.findByCart_Id(cart.getId());
         if (cartItems.isEmpty()) {
@@ -813,9 +823,11 @@ public class OrderService {
     }
 
     private OrderRedemptionPreviewResponse calculateRedemptionPreview(CartEntity cart, UUID userId, Integer requestedPoints, BigDecimal requestedTipAmount) {
-        RedemptionCalculation calculation = calculateRedemption(cart, userId, requestedPoints);
         BigDecimal subtotal = nullToZero(cart.getSubtotal()).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal taxableAmount = subtotal.subtract(calculation.amount()).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+        CouponCalculation coupon = couponService.calculate(cart.getCouponCode(), cart.getLocationId(), userId, subtotal);
+        BigDecimal subtotalAfterCoupon = subtotal.subtract(coupon.discountAmount()).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+        RedemptionCalculation calculation = calculateRedemption(cart, userId, requestedPoints, subtotalAfterCoupon);
+        BigDecimal taxableAmount = subtotalAfterCoupon.subtract(calculation.amount()).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
         BigDecimal taxRate = settingDecimal(cart.getLocationId(), DEFAULT_TAX_RATE, BigDecimal.ZERO);
         BigDecimal taxAmount = taxableAmount.multiply(taxRate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
         BigDecimal tipAmount = normalizeTipAmount(requestedTipAmount);
